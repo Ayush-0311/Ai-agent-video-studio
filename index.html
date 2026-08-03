@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SmartEdit AI — Automated Video Production Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="frontend/styles/main.css"/>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     TOAST NOTIFICATION
+═══════════════════════════════════════════════════════ -->
+<div class="toast" id="toast">
+  <div class="dot dot-g"></div>
+  <span id="toast-msg">Action completed</span>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     EXPORT MODAL (EXPORT OPTIMIZER AGENT)
+═══════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="export-modal">
+  <div class="modal-box">
+    <div class="flex items-center justify-between" style="margin-bottom:20px">
+      <div>
+        <h3 class="h4">Export Video</h3>
+        <div style="font-size:10px;color:var(--cyan);font-weight:700">EXPORT OPTIMIZER AGENT PIPELINE</div>
+      </div>
+      <button class="btn-icon" onclick="closeModal('export-modal')">✕</button>
+    </div>
+    <div class="setting-group" style="margin-bottom:16px">
+      <div class="setting-row">
+        <div><div class="setting-label">Platform Aspect Ratio</div><div class="setting-desc">Auto-reframing for targeted distribution</div></div>
+        <div class="pill-group">
+          <div class="pill-opt active" onclick="setExportPreset('16:9', this)">YouTube (16:9)</div>
+          <div class="pill-opt" onclick="setExportPreset('9:16', this)">Reels (9:16)</div>
+          <div class="pill-opt" onclick="setExportPreset('1:1', this)">LinkedIn (1:1)</div>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Resolution</div></div>
+        <div class="pill-group"><div class="pill-opt" onclick="pickPill(this)">1080p</div><div class="pill-opt active" onclick="pickPill(this)">4K</div></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Format</div></div>
+        <div class="pill-group"><div class="pill-opt active" onclick="pickPill(this)">MP4</div><div class="pill-opt" onclick="pickPill(this)">WebM</div></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Include Subtitles</div></div>
+        <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+      </div>
+    </div>
+    <div id="export-progress-wrap" style="display:none;margin-bottom:16px">
+      <div class="flex items-center justify-between" style="margin-bottom:8px">
+        <span style="font-size:13px;color:var(--t2)" id="export-status-text">Initializing encoder…</span>
+        <span class="mono" style="font-size:11px;color:var(--cyan)" id="export-pct-text">0%</span>
+      </div>
+      <div class="bar-h"><div class="bar-h-fill" id="export-bar" style="width:0%;background:var(--grad)"></div></div>
+    </div>
+    <div class="flex gap-12">
+      <button class="btn btn-secondary flex-1" onclick="closeModal('export-modal')">Cancel</button>
+      <button class="btn btn-primary flex-1" id="export-btn" onclick="startExport()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export 4K MP4
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     VIEW: LANDING PAGE
+═══════════════════════════════════════════════════════ -->
+<div class="view active" id="view-landing">
+  <div class="scroll-area" style="height:100vh">
+    <!-- NAV -->
+    <nav class="lp-nav">
+      <div class="logo" style="margin:0">
+        <div class="logo-mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+        <span class="logo-name">SmartEdit<span style="color:var(--purple)">AI</span></span>
+      </div>
+      <div class="lp-nav-links">
+        <span class="lp-nav-link" onclick="scrollToSection('features')">Features</span>
+        <span class="lp-nav-link" onclick="scrollToSection('workflow')">How it Works</span>
+        <span class="lp-nav-link" onclick="scrollToSection('tech')">Tech Stack</span>
+        <span class="lp-nav-link" onclick="scrollToSection('pricing')">Pricing</span>
+      </div>
+      <div class="flex gap-8">
+        <button class="btn btn-secondary btn-sm" onclick="goTo('dashboard')">Sign In</button>
+        <button class="btn btn-primary btn-sm" onclick="goTo('dashboard')">Get Started Free</button>
+      </div>
+    </nav>
+
+    <!-- HERO -->
+    <section class="hero" id="hero">
+      <div class="orb" style="width:600px;height:600px;background:radial-gradient(circle,rgba(139,92,246,.18),transparent 70%);top:-120px;left:-80px;filter:blur(60px);animation:orbPulse 8s ease-in-out infinite"></div>
+      <div class="orb" style="width:500px;height:500px;background:radial-gradient(circle,rgba(6,182,212,.12),transparent 70%);bottom:-60px;right:-40px;filter:blur(60px);animation:orbPulse 11s ease-in-out infinite reverse"></div>
+      <div class="orb" style="width:400px;height:400px;background:radial-gradient(circle,rgba(59,130,246,.08),transparent 70%);top:40%;left:35%;filter:blur(80px);animation:orbPulse 14s ease-in-out infinite 2s"></div>
+      <div class="absolute inset-0 pointer-none" style="background-image:repeating-linear-gradient(0deg,transparent,transparent 59px,rgba(255,255,255,.012) 60px),repeating-linear-gradient(90deg,transparent,transparent 59px,rgba(255,255,255,.012) 60px)"></div>
+      <div class="relative z-10" style="max-width:980px">
+        <div class="tag tag-p" style="margin-bottom:28px;padding:6px 16px;font-size:11px">
+          <div class="dot dot-p"></div>
+          AI VIDEO AUTOMATION ENGINE — PRODUCTION READY
+        </div>
+        <h1 class="h1" style="margin-bottom:24px">
+          Your Video.<br/>
+          <span class="grad-text">Edited by AI.</span><br/>
+          In 60 Seconds.
+        </h1>
+        <p style="font-size:19px;color:var(--t2);max-width:680px;margin:0 auto 48px;line-height:1.7">
+          Upload raw presenter footage. AI extracts audio, transcribes speech, understands context,
+          retrieves perfect visuals, syncs everything, adds subtitles, and renders a cinematic
+          4K video — <strong style="color:var(--t1)">fully automatically.</strong>
+        </p>
+        <div class="flex gap-16 justify-center" style="flex-wrap:wrap;margin-bottom:56px">
+          <button class="btn btn-primary" style="padding:15px 40px;font-size:16px;border-radius:14px" onclick="goTo('dashboard')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 3l14 9-14 9V3z"/></svg>
+            Start Creating Free
+          </button>
+          <button class="btn btn-secondary" style="padding:15px 32px;font-size:16px;border-radius:14px" onclick="goTo('architecture')">
+            View AI Architecture
+          </button>
+        </div>
+        <!-- Stats bar -->
+        <div class="flex gap-40 justify-center" style="flex-wrap:wrap">
+          <div class="text-center"><div style="font-size:30px;font-weight:800" class="grad-text">99.4%</div><div class="stat-sub" style="margin-top:4px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;color:var(--t4)">Whisper Accuracy</div></div>
+          <div style="width:1px;background:var(--bdr)"></div>
+          <div class="text-center"><div style="font-size:30px;font-weight:800;color:var(--cyan)">&lt;60s</div><div class="stat-sub" style="margin-top:4px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;color:var(--t4)">Avg. Process Time</div></div>
+          <div style="width:1px;background:var(--bdr)"></div>
+          <div class="text-center"><div style="font-size:30px;font-weight:800;color:var(--green)">4K 60fps</div><div class="stat-sub" style="margin-top:4px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;color:var(--t4)">Max Output</div></div>
+          <div style="width:1px;background:var(--bdr)"></div>
+          <div class="text-center"><div style="font-size:30px;font-weight:800;color:var(--yellow)">11 Steps</div><div class="stat-sub" style="margin-top:4px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;color:var(--t4)">AI Pipeline</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section style="padding:90px 60px;background:var(--bg1)" id="features">
+      <div class="text-center" style="margin-bottom:56px">
+        <div class="tag tag-c" style="margin-bottom:18px">FEATURES</div>
+        <h2 class="h2" style="margin-bottom:14px">Everything AI Needs<br/><span class="grad-text">to Edit Your Video</span></h2>
+        <p style="font-size:17px;color:var(--t2);max-width:560px;margin:0 auto">Every step of the production pipeline handled by specialized AI modules working in concert.</p>
+      </div>
+      <div class="feature-grid" style="max-width:1300px;margin:0 auto">
+        <div class="feature-card"><div class="feature-icon" style="background:rgba(139,92,246,.1)"><svg width="22" height="22" fill="none" stroke="var(--purple)" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></div><div class="h4" style="margin-bottom:7px">AI Speech Recognition</div><p style="font-size:13px;color:var(--t2);line-height:1.6">Whisper V3 with 99.4% accuracy. Word-level timestamps, speaker diarization, confidence scoring.</p></div>
+        <div class="feature-card"><div class="feature-icon" style="background:rgba(6,182,212,.1)"><svg width="22" height="22" fill="none" stroke="var(--cyan)" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div><div class="h4" style="margin-bottom:7px">Semantic Context AI</div><p style="font-size:13px;color:var(--t2);line-height:1.6">GPT-4o/Claude understands sentiment, metaphor, and emphasis to decide when visuals are needed.</p></div>
+        <div class="feature-card"><div class="feature-icon" style="background:rgba(59,130,246,.1)"><svg width="22" height="22" fill="none" stroke="var(--blue)" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></div><div class="h4" style="margin-bottom:7px">Auto Visual Retrieval</div><p style="font-size:13px;color:var(--t2);line-height:1.6">Searches Unsplash, Pexels, Pixabay and DALL·E 3 in parallel for contextually perfect assets.</p></div>
+        <div class="feature-card"><div class="feature-icon" style="background:rgba(16,185,129,.1)"><svg width="22" height="22" fill="none" stroke="var(--green)" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div class="h4" style="margin-bottom:7px">Timeline Sync</div><p style="font-size:13px;color:var(--t2);line-height:1.6">Frame-perfect visual placement with AI-selected transitions. Smooth and professional every time.</p></div>
+        <div class="feature-card"><div class="feature-icon" style="background:rgba(245,158,11,.1)"><svg width="22" height="22" fill="none" stroke="var(--yellow)" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><div class="h4" style="margin-bottom:7px">Auto Subtitles</div><p style="font-size:13px;color:var(--t2);line-height:1.6">Word-level SRT/ASS generation in 50+ languages. Custom fonts, colors, animations, and positioning.</p></div>
+        <div class="feature-card"><div class="feature-icon" style="background:rgba(239,68,68,.1)"><svg width="22" height="22" fill="none" stroke="var(--red)" stroke-width="2" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div><div class="h4" style="margin-bottom:7px">4K GPU Rendering</div><p style="font-size:13px;color:var(--t2);line-height:1.6">FFmpeg with NVIDIA CUDA acceleration. H.265 HEVC encoding. Up to 4K 60fps HDR output.</p></div>
+        <div class="feature-card"><div class="feature-icon" style="background:rgba(139,92,246,.1)"><svg width="22" height="22" fill="none" stroke="var(--purple)" stroke-width="2" viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg></div><div class="h4" style="margin-bottom:7px">AI Background Music</div><p style="font-size:13px;color:var(--t2);line-height:1.6">Selects royalty-free music matching content mood. Auto-ducks when speech is present.</p></div>
+        <div class="feature-card"><div class="feature-icon" style="background:rgba(6,182,212,.1)"><svg width="22" height="22" fill="none" stroke="var(--cyan)" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div class="h4" style="margin-bottom:7px">Multi-Language Dub</div><p style="font-size:13px;color:var(--t2);line-height:1.6">AI voice cloning translates and dubs your video into 50+ languages while preserving your voice.</p></div>
+        <div class="feature-card"><div class="feature-icon" style="background:rgba(245,158,11,.1)"><svg width="22" height="22" fill="none" stroke="var(--yellow)" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div class="h4" style="margin-bottom:7px">AI Intro & Outro</div><p style="font-size:13px;color:var(--t2);line-height:1.6">Generates branded animated intro and outro using your logo and color palette automatically.</p></div>
+        <div class="feature-card"><div class="feature-icon" style="background:rgba(16,185,129,.1)"><svg width="22" height="22" fill="none" stroke="var(--green)" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div class="h4" style="margin-bottom:7px">Auto B-Roll</div><p style="font-size:13px;color:var(--t2);line-height:1.6">Intelligently inserts relevant stock footage clips as B-roll to maintain viewer engagement.</p></div>
+        <div class="feature-card"><div class="feature-icon" style="background:rgba(59,130,246,.1)"><svg width="22" height="22" fill="none" stroke="var(--blue)" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div><div class="h4" style="margin-bottom:7px">Smart Transitions</div><p style="font-size:13px;color:var(--t2);line-height:1.6">AI selects appropriate transitions: fade, slide, blur, zoom, dissolve, and 40+ more effects.</p></div>
+        <div class="feature-card"><div class="feature-icon" style="background:rgba(139,92,246,.1)"><svg width="22" height="22" fill="none" stroke="var(--purple)" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div class="h4" style="margin-bottom:7px">Quality Assurance AI</div><p style="font-size:13px;color:var(--t2);line-height:1.6">Automated quality check reviews sync accuracy, image relevance, and audio levels before export.</p></div>
+      </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section style="padding:90px 60px" id="workflow">
+      <div class="text-center" style="margin-bottom:56px">
+        <div class="tag tag-p" style="margin-bottom:18px">11-STEP PIPELINE</div>
+        <h2 class="h2" style="margin-bottom:14px">Zero Manual Editing.<br/><span class="grad-text">100% AI Automated.</span></h2>
+      </div>
+      <div class="step-grid" style="max-width:860px;margin:0 auto">
+        <div class="step-cell"><div class="step-num" style="background:rgba(139,92,246,.1);color:var(--purple);border:1px solid rgba(139,92,246,.25)">01</div><div><strong style="font-size:13px">Upload Raw Video</strong><p style="font-size:12px;color:var(--t3);margin-top:3px">MP4, MOV, AVI, WebM up to 10GB</p></div></div>
+        <div class="step-cell border-l"><div class="step-num" style="background:rgba(6,182,212,.1);color:var(--cyan);border:1px solid rgba(6,182,212,.25)">02</div><div><strong style="font-size:13px">Extract Audio</strong><p style="font-size:12px;color:var(--t3);margin-top:3px">FFmpeg lossless audio separation</p></div></div>
+        <div class="step-cell"><div class="step-num" style="background:rgba(139,92,246,.1);color:var(--purple);border:1px solid rgba(139,92,246,.25)">03</div><div><strong style="font-size:13px">Whisper STT</strong><p style="font-size:12px;color:var(--t3);margin-top:3px">Word-level timestamps, 0.6% WER</p></div></div>
+        <div class="step-cell border-l"><div class="step-num" style="background:rgba(59,130,246,.1);color:var(--blue);border:1px solid rgba(59,130,246,.25)">04</div><div><strong style="font-size:13px">LLM Analysis</strong><p style="font-size:12px;color:var(--t3);margin-top:3px">GPT-4o full semantic understanding</p></div></div>
+        <div class="step-cell"><div class="step-num" style="background:rgba(16,185,129,.1);color:var(--green);border:1px solid rgba(16,185,129,.25)">05</div><div><strong style="font-size:13px">Visual Decisions</strong><p style="font-size:12px;color:var(--t3);margin-top:3px">Breakpoint mapping engine</p></div></div>
+        <div class="step-cell border-l"><div class="step-num" style="background:rgba(245,158,11,.1);color:var(--yellow);border:1px solid rgba(245,158,11,.25)">06</div><div><strong style="font-size:13px">Search Queries</strong><p style="font-size:12px;color:var(--t3);margin-top:3px">Contextual asset retrieval prompts</p></div></div>
+        <div class="step-cell"><div class="step-num" style="background:rgba(139,92,246,.1);color:var(--purple);border:1px solid rgba(139,92,246,.25)">07</div><div><strong style="font-size:13px">Asset Retrieval</strong><p style="font-size:12px;color:var(--t3);margin-top:3px">4 APIs fetched in parallel</p></div></div>
+        <div class="step-cell border-l"><div class="step-num" style="background:rgba(6,182,212,.1);color:var(--cyan);border:1px solid rgba(6,182,212,.25)">08</div><div><strong style="font-size:13px">Timeline Build</strong><p style="font-size:12px;color:var(--t3);margin-top:3px">Frame-accurate 60fps composition</p></div></div>
+        <div class="step-cell"><div class="step-num" style="background:rgba(59,130,246,.1);color:var(--blue);border:1px solid rgba(59,130,246,.25)">09</div><div><strong style="font-size:13px">Add Subtitles</strong><p style="font-size:12px;color:var(--t3);margin-top:3px">SRT + ASS with custom styling</p></div></div>
+        <div class="step-cell border-l"><div class="step-num" style="background:rgba(16,185,129,.1);color:var(--green);border:1px solid rgba(16,185,129,.25)">10</div><div><strong style="font-size:13px">GPU Render</strong><p style="font-size:12px;color:var(--t3)">FFmpeg H.265 4K 60fps HDR</p></div></div>
+        <div class="step-cell" style="grid-column:1/-1;justify-content:center;gap:20px;background:rgba(139,92,246,.05);border-top:1px solid rgba(139,92,246,.15);border-bottom:none">
+          <div class="step-num" style="background:var(--grad);color:#fff;border:none;font-size:16px;width:44px;height:44px">11</div>
+          <div><strong style="font-size:17px" class="grad-text">Download Final 4K MP4</strong><p style="font-size:12px;color:var(--t3);margin-top:3px">Your cinematic video ready in under 60 seconds</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TECH STACK -->
+    <section style="padding:90px 60px;background:var(--bg1)" id="tech">
+      <div class="text-center" style="margin-bottom:56px">
+        <div class="tag tag-c" style="margin-bottom:18px">TECHNOLOGY</div>
+        <h2 class="h2" style="margin-bottom:14px">World-Class<br/><span class="grad-text">AI Infrastructure</span></h2>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:32px;max-width:1000px;margin:0 auto">
+        <div class="card" style="padding:28px">
+          <div class="panel-label" style="color:var(--purple);margin-bottom:20px">FRONTEND</div>
+          <div class="flex flex-col gap-8">
+            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>Next.js 14 (App Router)</div>
+            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>TypeScript + Zustand</div>
+            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>Tailwind CSS</div>
+            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>Framer Motion</div>
+            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>React Query</div>
+          </div>
+        </div>
+        <div class="card" style="padding:28px">
+          <div class="panel-label" style="color:var(--cyan);margin-bottom:20px">AI ENGINE</div>
+          <div class="flex flex-col gap-8">
+            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>OpenAI Whisper V3</div>
+            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>GPT-4o / Claude 3.5</div>
+            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>DALL·E 3 / Stable Diffusion</div>
+            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>PyTorch + LangChain</div>
+            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>Pyannote Diarization</div>
+          </div>
+        </div>
+        <div class="card" style="padding:28px">
+          <div class="panel-label" style="color:var(--blue);margin-bottom:20px">BACKEND & INFRA</div>
+          <div class="flex flex-col gap-8">
+            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>Python FastAPI</div>
+            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>FFmpeg + OpenCV</div>
+            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>PostgreSQL + Redis</div>
+            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>AWS S3 + CloudFront</div>
+            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>Celery + RabbitMQ</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRICING -->
+    <section style="padding:90px 60px" id="pricing">
+      <div class="text-center" style="margin-bottom:56px">
+        <div class="tag tag-g" style="margin-bottom:18px">PRICING</div>
+        <h2 class="h2" style="margin-bottom:14px">Simple, Transparent<br/><span class="grad-text">Pricing</span></h2>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px;max-width:960px;margin:0 auto">
+        <div class="price-card glass"><div class="tag tag-p" style="margin-bottom:16px">STARTER</div><div style="font-size:38px;font-weight:800;margin-bottom:4px">$0</div><div style="font-size:13px;color:var(--t4);margin-bottom:26px">5 videos / month</div><div class="flex flex-col gap-10" style="margin-bottom:26px"><div style="font-size:13px;color:var(--t2)">✓ 720p Output</div><div style="font-size:13px;color:var(--t2)">✓ Basic Subtitles</div><div style="font-size:13px;color:var(--t2)">✓ 10 AI Images/video</div><div style="font-size:13px;color:var(--t3)">✗ B-Roll insertion</div><div style="font-size:13px;color:var(--t3)">✗ Background music</div></div><button class="btn btn-secondary w-full" onclick="goTo('dashboard')">Get Started</button></div>
+        <div class="price-card" style="background:rgba(139,92,246,.07);border:2px solid rgba(139,92,246,.3);border-radius:18px;position:relative"><div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%)"><span class="tag tag-p">MOST POPULAR</span></div><div class="tag tag-p" style="margin-bottom:16px">PRO</div><div style="font-size:38px;font-weight:800;margin-bottom:4px" class="grad-text">$49</div><div style="font-size:13px;color:var(--t4);margin-bottom:26px">per month</div><div class="flex flex-col gap-10" style="margin-bottom:26px"><div style="font-size:13px;color:var(--t2)">✓ 50 videos/month</div><div style="font-size:13px;color:var(--t2)">✓ 4K Output</div><div style="font-size:13px;color:var(--t2)">✓ AI Image Generation</div><div style="font-size:13px;color:var(--t2)">✓ B-Roll + Music</div><div style="font-size:13px;color:var(--t2)">✓ Multi-language subs</div></div><button class="btn btn-primary w-full" onclick="goTo('dashboard')">Start Pro Trial</button></div>
+        <div class="price-card glass"><div class="tag tag-c" style="margin-bottom:16px">ENTERPRISE</div><div style="font-size:38px;font-weight:800;margin-bottom:4px;color:var(--cyan)">Custom</div><div style="font-size:13px;color:var(--t4);margin-bottom:26px">Unlimited everything</div><div class="flex flex-col gap-10" style="margin-bottom:26px"><div style="font-size:13px;color:var(--t2)">✓ Unlimited videos</div><div style="font-size:13px;color:var(--t2)">✓ Private GPU cluster</div><div style="font-size:13px;color:var(--t2)">✓ Custom AI fine-tuning</div><div style="font-size:13px;color:var(--t2)">✓ SLA + Priority support</div><div style="font-size:13px;color:var(--t2)">✓ White-label option</div></div><button class="btn btn-secondary w-full" onclick="toast('Sales team will contact you!')">Contact Sales</button></div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer style="padding:48px 60px;border-top:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px">
+      <div class="logo" style="margin:0"><div class="logo-mark" style="width:26px;height:26px"><svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div><span class="logo-name" style="font-size:14px">SmartEdit<span style="color:var(--purple)">AI</span></span></div>
+      <div class="flex gap-24">
+        <span class="lp-nav-link">Privacy</span><span class="lp-nav-link">Terms</span><span class="lp-nav-link">Docs</span><span class="lp-nav-link">API</span>
+      </div>
+      <div style="font-size:12px;color:var(--t4)">© 2025 SmartEditAI Inc. All rights reserved.</div>
+    </footer>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     VIEW: DASHBOARD
+═══════════════════════════════════════════════════════ -->
+<div class="view" id="view-dashboard">
+  <div class="flex flex-1 overflow-hidden">
+    <div class="sidebar" id="sidebar-dash">
+      <div class="logo"><div class="logo-mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div><span class="logo-name">SmartEdit<span style="color:var(--purple)">AI</span></span></div>
+      <div class="nav-section-label">Studio</div>
+      <div class="nav-item active" data-view="dashboard" onclick="sideNav(this,'dashboard')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard</div>
+      <div class="nav-item" data-view="upload" onclick="goTo('upload')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>New Project</div>
+      <div class="nav-item" data-view="editor" onclick="goTo('editor')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>AI Editor</div>
+      <div class="nav-item" data-view="agents" onclick="goTo('agents')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>AI Agents</div>
+      <div class="nav-section-label">AI Tools</div>
+      <div class="nav-item" data-view="library" onclick="goTo('library')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>Visual Library</div>
+      <div class="nav-item" data-view="architecture" onclick="goTo('architecture')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>Architecture</div>
+      <div class="nav-section-label">Account</div>
+      <div class="nav-item" data-view="analytics" onclick="goTo('analytics')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Analytics</div>
+      <div class="nav-item" data-view="settings" onclick="goTo('settings')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>Settings</div>
+      <div class="sidebar-bottom">
+        <div class="card" style="padding:12px;margin-bottom:10px">
+          <div class="flex justify-between items-center" style="margin-bottom:7px"><span class="section-label">GPU Cluster</span><div class="dot dot-g"></div></div>
+          <div class="bar-h" style="margin-bottom:6px"><div class="bar-h-fill" style="width:65%;background:var(--grad)"></div></div>
+          <div style="font-size:10px;color:var(--t4)">H100 · 65% utilization</div>
+        </div>
+        <div class="nav-item" onclick="goTo('landing')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Back to Landing</div>
+      </div>
+    </div>
+    <div class="scroll-area flex-1" style="background:#070707;padding:40px">
+      <div class="flex justify-between items-center" style="margin-bottom:36px">
+        <div><h2 style="font-size:26px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px">Good Morning, Alex 👋</h2><p style="font-size:13px;color:var(--t2)">You have 3 projects ready for export today.</p></div>
+        <button class="btn btn-primary" onclick="goTo('upload')"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12l7-7 7 7"/></svg>New Video Project</button>
+      </div>
+      <!-- Stats -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:36px">
+        <div class="stat-card"><div class="stat-label">Total Videos</div><div class="stat-kpi">0</div><div class="stat-sub" style="color:var(--t4)">No videos yet</div></div>
+        <div class="stat-card"><div class="stat-label">Avg. Process Time</div><div class="stat-kpi" style="color:var(--cyan)">0s</div><div class="stat-sub" style="color:var(--t4)">-</div></div>
+        <div class="stat-card"><div class="stat-label">Images Retrieved</div><div class="stat-kpi" style="color:var(--purple)">0</div><div class="stat-sub">-</div></div>
+        <div class="stat-card"><div class="stat-label">AI Confidence</div><div class="stat-kpi" style="color:var(--yellow)">0%</div><div class="stat-sub">-</div></div>
+      </div>
+      <!-- Projects -->
+      <div class="flex justify-between items-center" style="margin-bottom:18px">
+        <div class="h4">Recent Projects</div>
+        <div class="sub-tabs" id="dash-tabs">
+          <div class="sub-tab active" onclick="subTab(this,event)">All</div>
+          <div class="sub-tab" onclick="subTab(this,event)">Processing</div>
+          <div class="sub-tab" onclick="subTab(this,event)">Ready</div>
+          <div class="sub-tab" onclick="subTab(this,event)">Draft</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px" id="projects-grid">
+        <div class="proj-card" onclick="goTo('upload')" style="border-style:dashed">
+          <div style="min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--t4);padding:28px">
+            <svg width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <div style="font-weight:600;font-size:13px">Create New Video</div>
+            <div style="font-size:11px;text-align:center">Generate from prompt or upload</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     VIEW: UPLOAD
+═══════════════════════════════════════════════════════ -->
+<div class="view" id="view-upload">
+  <div class="flex flex-1 overflow-hidden">
+    <div class="sidebar">
+      <div class="logo"><div class="logo-mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div><span class="logo-name">SmartEdit<span style="color:var(--purple)">AI</span></span></div>
+      <div class="nav-item" onclick="goTo('dashboard')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="M12 5l-7 7 7 7"/></svg>Back to Dashboard</div>
+      <div class="nav-item active"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Upload Video</div>
+    </div>
+    <div class="scroll-area flex-1" style="background:#070707;padding:52px">
+      <div style="max-width:760px;margin:0 auto">
+        <h2 class="h3" style="margin-bottom:8px">Create Your Video</h2>
+        <p style="color:var(--t2);margin-bottom:24px">AI will automatically generate your video from a prompt or extract audio from an uploaded video to render a new cinematic experience.</p>
+
+        <!-- Prompt Zone -->
+        <div class="card" style="padding:24px;margin-bottom:24px">
+          <div style="font-weight:700;font-size:14px;margin-bottom:8px;color:var(--t1)">1. Generate from Prompt (Text-to-Video)</div>
+          <p style="font-size:12px;color:var(--t3);margin-bottom:12px">Describe your video, topic, and style. The Orchestrator Agent will write the script and generate all visuals.</p>
+          <textarea id="upload-prompt-input" style="width:100%;height:100px;background:var(--bg1);border:1px solid var(--bdr);border-radius:12px;padding:14px;color:#fff;font-size:14px;font-family:inherit;resize:none;margin-bottom:12px" placeholder="e.g., Create a 60-second YouTube Shorts video about the history of artificial intelligence. Make it engaging with a split-screen podcast layout..."></textarea>
+          
+          <div class="flex items-center gap-10">
+            <span style="font-size:12px;color:var(--t3);font-weight:600">Video Duration:</span>
+            <select id="upload-duration" style="background:var(--bg1);border:1px solid var(--bdr);border-radius:8px;padding:6px 12px;color:#fff;font-size:12px;outline:none">
+              <option value="15">15 Seconds</option>
+              <option value="30" selected>30 Seconds</option>
+              <option value="60">1 Minute</option>
+              <option value="120">2 Minutes</option>
+              <option value="300">5 Minutes (Max)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px">
+          <div style="flex:1;height:1px;background:var(--bdr)"></div>
+          <div style="font-size:12px;color:var(--t4);font-weight:700;text-transform:uppercase">OR</div>
+          <div style="flex:1;height:1px;background:var(--bdr)"></div>
+        </div>
+
+        <div style="font-weight:700;font-size:14px;margin-bottom:16px;color:var(--t1)">2. Generate from Footage (Video-to-Video)</div>
+        <!-- Drop Zone -->
+        <div class="drop-zone" id="drop-zone" ondragover="dzDragOver(event)" ondragleave="dzDragLeave(event)" ondrop="dzDrop(event)" onclick="dzClick()">
+          <div id="dz-idle">
+            <div style="width:72px;height:72px;background:rgba(139,92,246,.1);border-radius:20px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px">
+              <svg width="36" height="36" fill="none" stroke="var(--purple)" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div class="h4" style="margin-bottom:8px">Drop your video file here</div>
+            <p style="font-size:13px;color:var(--t2);margin-bottom:18px">or click to browse from your computer</p>
+            <div class="flex gap-8 justify-center"><span class="tag tag-p">MP4</span><span class="tag tag-p">MOV</span><span class="tag tag-p">AVI</span><span class="tag tag-p">WebM</span><span class="tag tag-p">MKV</span></div>
+            <p style="font-size:12px;color:var(--t4);margin-top:14px">Maximum file size: 10 GB</p>
+          </div>
+          <div id="dz-uploading" style="display:none">
+            <div style="font-weight:700;font-size:16px;margin-bottom:16px" id="upload-filename">video_file.mp4</div>
+            <div class="bar-h" style="max-width:400px;margin:0 auto 12px;height:6px"><div class="bar-h-fill" id="upload-bar" style="width:0%;background:var(--grad)"></div></div>
+            <div style="font-size:14px;color:var(--t2)" id="upload-pct-label">Uploading… 0%</div>
+            <div style="font-size:12px;color:var(--t4);margin-top:8px" id="upload-speed">–</div>
+          </div>
+        </div>
+        <input type="file" id="file-input" accept="video/*" style="display:none" onchange="fileSelected(event)"/>
+
+        <!-- AI Options -->
+        <div class="card" style="padding:26px;margin-top:24px">
+          <div class="h4" style="margin-bottom:20px">AI Processing Configuration</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--t3);margin-bottom:8px">Speech Recognition Model</div>
+              <div class="pill-group" id="pill-speech"><div class="pill-opt active" onclick="pickPill(this)">Whisper V3</div><div class="pill-opt" onclick="pickPill(this)">V3 Large</div><div class="pill-opt" onclick="pickPill(this)">V2 Fast</div></div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--t3);margin-bottom:8px">Language Model (LLM)</div>
+              <div class="pill-group" id="pill-llm"><div class="pill-opt active" onclick="pickPill(this)">Llama-3 8B</div><div class="pill-opt" onclick="pickPill(this)">Mistral 7B</div><div class="pill-opt" onclick="pickPill(this)">Gemma 7B</div></div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--t3);margin-bottom:8px">Image Source</div>
+              <div class="pill-group" id="pill-img"><div class="pill-opt active" onclick="pickPill(this)">SDXL Turbo</div><div class="pill-opt" onclick="pickPill(this)">Flux.1 Local</div><div class="pill-opt" onclick="pickPill(this)">Custom Local</div></div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--t3);margin-bottom:8px">Output Resolution</div>
+              <div class="pill-group" id="pill-res"><div class="pill-opt" onclick="pickPill(this)">720p</div><div class="pill-opt" onclick="pickPill(this)">1080p</div><div class="pill-opt active" onclick="pickPill(this)">4K</div></div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--t3);margin-bottom:8px">Subtitle Style</div>
+              <div class="pill-group" id="pill-sub"><div class="pill-opt active" onclick="pickPill(this)">Cinematic</div><div class="pill-opt" onclick="pickPill(this)">Bold</div><div class="pill-opt" onclick="pickPill(this)">Minimal</div></div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--t3);margin-bottom:8px">Transition Style</div>
+              <div class="pill-group" id="pill-trans"><div class="pill-opt active" onclick="pickPill(this)">AI Choice</div><div class="pill-opt" onclick="pickPill(this)">Fade</div><div class="pill-opt" onclick="pickPill(this)">Zoom</div></div>
+            </div>
+          </div>
+          <div class="flex gap-24" style="flex-wrap:wrap">
+            <label class="flex items-center gap-10" style="cursor:pointer;font-size:13px"><div class="toggle on" id="tog-broll" onclick="this.classList.toggle('on')"></div>Auto B-Roll</label>
+            <label class="flex items-center gap-10" style="cursor:pointer;font-size:13px"><div class="toggle on" id="tog-music" onclick="this.classList.toggle('on')"></div>Background Music</label>
+            <label class="flex items-center gap-10" style="cursor:pointer;font-size:13px"><div class="toggle on" id="tog-subs" onclick="this.classList.toggle('on')"></div>Auto Subtitles</label>
+            <label class="flex items-center gap-10" style="cursor:pointer;font-size:13px"><div class="toggle" id="tog-intro" onclick="this.classList.toggle('on')"></div>AI Intro/Outro</label>
+            <label class="flex items-center gap-10" style="cursor:pointer;font-size:13px"><div class="toggle on" id="tog-qa" onclick="this.classList.toggle('on')"></div>Quality Check</label>
+          </div>
+        </div>
+
+        <button class="btn btn-primary w-full" style="margin-top:18px;padding:15px;font-size:15px;border-radius:14px" onclick="startProcessingFlow()">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z"/></svg>
+          Start AI Processing
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     VIEW: PROCESSING
+═══════════════════════════════════════════════════════ -->
+<div class="view" id="view-processing">
+  <div class="flex flex-1 overflow-hidden">
+    <div class="sidebar">
+      <div class="logo"><div class="logo-mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div><span class="logo-name">SmartEdit<span style="color:var(--purple)">AI</span></span></div>
+      <div class="nav-item active"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>AI Processing</div>
+    </div>
+    <div class="flex-1 flex items-center justify-center relative" style="background:#070707">
+      <div class="pipe-grid"></div>
+      <div class="relative z-10 text-center" style="width:100%;max-width:620px;padding:32px">
+        <!-- Animated ring -->
+        <div style="width:96px;height:96px;border-radius:50%;border:3px solid rgba(139,92,246,.12);border-top-color:var(--purple);animation:spin 1.1s linear infinite;margin:0 auto 28px"></div>
+        <div class="tag tag-p" id="proc-step-tag" style="margin-bottom:18px">STEP 1 / 11</div>
+        <div class="h3" id="proc-title" style="margin-bottom:8px">Uploading Video</div>
+        <p id="proc-sub" style="font-size:13px;color:var(--t2);margin-bottom:32px">Securely transferring file to AI GPU cluster…</p>
+        <div class="bar-h" style="margin-bottom:32px;height:5px"><div class="bar-h-fill" id="proc-bar" style="width:0%;background:var(--grad)"></div></div>
+        <div id="proc-steps-list" class="flex flex-col gap-8" style="text-align:left;max-height:300px;overflow-y:auto"></div>
+        <!-- Done state -->
+        <div id="proc-done" style="display:none;margin-top:28px">
+          <div style="font-size:56px;margin-bottom:18px">🎬</div>
+          <div class="h3" style="margin-bottom:10px">Your Video is Ready!</div>
+          <p id="proc-done-stats" style="color:var(--t2);margin-bottom:26px;font-size:14px">AI made <strong style="color:var(--t1)">342 visual decisions</strong> in just 48 seconds.</p>
+          <button class="btn btn-primary" style="padding:13px 40px;font-size:15px" onclick="goTo('editor')">Open in Editor →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     VIEW: EDITOR
+═══════════════════════════════════════════════════════ -->
+<div class="view" id="view-editor">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="flex items-center gap-16">
+      <button class="btn-icon" onclick="goTo('dashboard')"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="M12 5l-7 7 7 7"/></svg></button>
+      <div>
+        <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px">AI Product Launch 2025 <span class="tag tag-g" style="font-size:8px">READY</span></div>
+        <div style="font-size:10px;color:var(--purple);font-weight:700">AUTO-EDITED · 342 AI DECISIONS · 4K 60fps</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-10">
+      <span id="ed-timecode" class="mono" style="font-size:12px;color:var(--cyan);padding:5px 10px;background:var(--bg2);border-radius:7px;border:1px solid var(--bdr)">00:00:00</span>
+      <button class="btn-icon" title="Undo" onclick="toast('Undo')"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg></button>
+      <button class="btn-icon" title="Redo" onclick="toast('Redo')"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg></button>
+      <button class="btn-icon" onclick="toast('Sharing link copied!')"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
+      <button class="btn btn-secondary btn-sm" onclick="goTo('analytics')">Analytics</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('export-modal')">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export 4K MP4
+      </button>
+    </div>
+  </div>
+
+  <div class="editor-main">
+    <!-- LEFT: Transcript -->
+    <div class="panel-left">
+      <div class="panel-header">
+        <div class="panel-label" style="color:var(--purple)">AI Transcript</div>
+        <div class="sub-tabs" id="tr-tabs">
+          <div class="sub-tab active" onclick="subTab(this,event)">Words</div>
+          <div class="sub-tab" onclick="subTab(this,event)">Topics</div>
+          <div class="sub-tab" onclick="subTab(this,event)">Clips</div>
+        </div>
+      </div>
+      <div class="scroll-area" style="padding:8px" id="transcript-list"></div>
+    </div>
+
+    <!-- CENTER: Preview + Controls -->
+    <div class="panel-center">
+      <div class="preview-wrap">
+        <div class="preview-screen" id="preview-screen">
+          <!-- Presenter bg -->
+          <div class="absolute inset-0" style="background:radial-gradient(ellipse at 50% 75%,#1c1c1c,#050505);display:flex;align-items:center;justify-content:center">
+            <div style="width:190px;height:190px;border-radius:50%;background:linear-gradient(145deg,#252525,#101010);box-shadow:0 0 80px rgba(0,0,0,.8)"></div>
+          </div>
+          <!-- Scan line indicator -->
+          <div id="scan-line" class="absolute pointer-none" style="left:0;right:0;height:1px;background:rgba(6,182,212,.2);display:none;top:0;animation:none"></div>
+          <!-- PIP overlay -->
+          <div class="pip-box" id="pip-box"><div id="pip-content" class="w-full h-full flex items-center justify-center" style="font-size:11px;color:rgba(255,255,255,.3)"></div></div>
+          <!-- Subtitle bar -->
+          <div class="subtitle-bar"><div class="subtitle-text" id="subtitle-display"></div></div>
+          <!-- Play overlay -->
+          <div class="play-overlay" id="play-overlay" onclick="togglePlay()">
+            <div class="play-btn-circle" id="play-btn-inner">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Playback Controls -->
+      <div class="playback-controls">
+        <button class="btn-icon" onclick="seekDelta(-10)" title="Back 10s"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg></button>
+        <button class="btn-icon" onclick="seekDelta(-5)" title="Back 5s"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 19l-7-7 7-7"/><path d="M18 5l-7 7 7 7"/></svg></button>
+        <button id="play-pause-btn" onclick="togglePlay()" style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid var(--bdr2);display:flex;align-items:center;justify-content:center;cursor:pointer;color:white;transition:all .2s">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <button class="btn-icon" onclick="seekDelta(5)" title="Forward 5s"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 5l7 7-7 7"/><path d="M6 19l7-7-7-7"/></svg></button>
+        <button class="btn-icon" onclick="seekDelta(10)" title="Forward 10s"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg></button>
+        <!-- Progress -->
+        <span id="cur-time" class="mono" style="font-size:10px;color:var(--t4);flex-shrink:0">0:00</span>
+        <div class="progress-track" id="progress-bar" onclick="seekClick(event,this)">
+          <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+          <div class="progress-thumb" id="progress-thumb" style="left:0%"></div>
+        </div>
+        <span class="mono" style="font-size:10px;color:var(--t4);flex-shrink:0">0:30</span>
+        <!-- Volume -->
+        <svg width="14" height="14" fill="none" stroke="var(--t4)" stroke-width="2" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        <input type="range" class="range volume-slider" min="0" max="100" value="80" style="width:64px" oninput="volChange(this.value)">
+        <!-- Speed -->
+        <div class="pill-group" style="font-size:10px" id="speed-pills">
+          <div class="pill-opt" onclick="setSpeed(.5,this)">0.5x</div>
+          <div class="pill-opt active" onclick="setSpeed(1,this)">1x</div>
+          <div class="pill-opt" onclick="setSpeed(1.5,this)">1.5x</div>
+          <div class="pill-opt" onclick="setSpeed(2,this)">2x</div>
+        </div>
+      </div>
+      <!-- Natural Language Edit Agent Console -->
+      <div class="nl-edit-bar">
+        <span class="tag tag-y" style="font-size:8px;flex-shrink:0">NL EDIT AGENT</span>
+        <input class="nl-edit-input" id="ed-nl-input" placeholder="Type prompt (e.g. 'Avatar background blue karo', 'Add Hindi subtitles', 'Scene 2 ko podcast layout me badlo')..." onkeypress="if(event.key==='Enter') handleNLCommand('ed-nl-input')">
+        <button class="btn btn-primary btn-xs" onclick="handleNLCommand('ed-nl-input')">Apply Edit</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: Decision Engine -->
+    <div class="panel-right">
+      <div class="panel-header">
+        <div class="panel-label" style="color:var(--cyan)">Decision Engine</div>
+        <div class="sub-tabs" id="de-tabs">
+          <div class="sub-tab active" onclick="subTab(this,event)">Live</div>
+          <div class="sub-tab" onclick="subTab(this,event)">All</div>
+        </div>
+      </div>
+      <div class="scroll-area" style="padding:8px" id="decision-list"></div>
+    </div>
+  </div>
+
+  <!-- TIMELINE -->
+  <div class="timeline-area">
+    <div class="timeline-header">
+      <div class="flex items-center gap-12">
+        <span class="section-label">Timeline Editor</span>
+        <div class="flex gap-4">
+          <button class="btn-icon" onclick="zoomTL(1)" title="Zoom In"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+          <button class="btn-icon" onclick="zoomTL(-1)" title="Zoom Out"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg></button>
+          <button class="btn-icon" onclick="zoomTL(0,true)" title="Fit to Window"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
+        </div>
+        <div class="flex gap-8 items-center" style="margin-left:8px">
+          <div class="flex items-center gap-5"><div style="width:10px;height:10px;border-radius:2px;background:rgba(59,130,246,.6)"></div><span style="font-size:10px;color:var(--t4)">Video</span></div>
+          <div class="flex items-center gap-5"><div style="width:10px;height:10px;border-radius:2px;background:rgba(139,92,246,.6)"></div><span style="font-size:10px;color:var(--t4)">Visuals</span></div>
+          <div class="flex items-center gap-5"><div style="width:10px;height:10px;border-radius:2px;background:rgba(6,182,212,.6)"></div><span style="font-size:10px;color:var(--t4)">Subs</span></div>
+          <div class="flex items-center gap-5"><div style="width:10px;height:10px;border-radius:2px;background:rgba(16,185,129,.6)"></div><span style="font-size:10px;color:var(--t4)">Music</span></div>
+        </div>
+      </div>
+      <div class="flex items-center gap-12">
+        <span style="font-size:10px;color:var(--t4)">Zoom: <span id="zoom-label" class="mono" style="color:var(--cyan)">30px/s</span></span>
+        <span id="tl-timecode" class="mono" style="font-size:11px;color:var(--cyan)">00:00:00</span>
+      </div>
+    </div>
+    <div class="timeline-body" id="tl-body">
+      <div id="tl-content" style="position:relative;min-height:100%">
+        <div id="tl-ruler" class="tl-ruler"></div>
+        <div id="tl-tracks" style="position:relative;padding:4px 0"></div>
+        <div class="tl-playhead" id="tl-playhead" style="left:72px;background:var(--cyan);box-shadow:0 0 10px rgba(6,182,212,.6)"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     VIEW: AI AGENTS (16 AUTONOMOUS AGENTS)
+═══════════════════════════════════════════════════════ -->
+<div class="view" id="view-agents">
+  <div class="flex flex-1 overflow-hidden">
+    <div class="sidebar">
+      <div class="logo"><div class="logo-mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div><span class="logo-name">SmartEdit<span style="color:var(--purple)">AI</span></span></div>
+      <div class="nav-item" onclick="goTo('dashboard')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard</div>
+      <div class="nav-item active"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>AI Agents (16)</div>
+      <div class="nav-section-label">Agent Filter</div>
+      <div class="nav-item active" onclick="filterAgents(this, 'all')"><div class="dot dot-g" style="margin-right:8px"></div>All 16 Agents</div>
+      <div class="nav-item" onclick="filterAgents(this, 'core')"><div class="dot dot-p" style="margin-right:8px"></div>Core Pipeline (10)</div>
+      <div class="nav-item" onclick="filterAgents(this, 'bonus')"><div class="dot dot-c" style="margin-right:8px"></div>Bonus Features (6)</div>
+    </div>
+    <div class="scroll-area flex-1" style="background:#070707;padding:40px">
+      <div class="flex justify-between items-center" style="margin-bottom:32px">
+        <div>
+          <div class="flex gap-8 items-center" style="margin-bottom:4px">
+            <h2 class="h3">16 Autonomous AI Agents</h2>
+            <span class="tag tag-g">100% LOCAL (NO API KEY)</span>
+          </div>
+          <p style="font-size:13px;color:var(--t2)">Powered by Ollama, Stable Diffusion XL, Coqui XTTS-v2, MuseTalk, Whisper & FFmpeg CUDA.</p>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="toast('Recruiting new specialized agent…')">+ Deploy Custom Agent</button>
+      </div>
+      
+      <!-- Agent Grid (Dynamically rendered by agent-engine.js for all 16 agents) -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:20px" id="agent-grid"></div>
+
+      <!-- Agent Communication Console & Natural Language Command Input -->
+      <div class="glass" style="margin-top:40px;padding:32px">
+        <div class="flex justify-between items-center" style="margin-bottom:20px">
+          <div>
+            <h3 class="h4">Agent Communication Console</h3>
+            <div style="font-size:11px;color:var(--t4)">Real-time execution log from all 16 active local agents</div>
+          </div>
+          <span class="tag tag-p">NATURAL LANGUAGE AGENT ACTIVE</span>
+        </div>
+        <div class="flex flex-col gap-12" id="agent-console">
+          <div class="flex gap-12"><div class="dot dot-p" style="margin-top:6px"></div><div style="font-size:13px"><span style="font-weight:700;color:var(--purple)">Orchestrator Agent:</span> LangGraph pipeline execution graph initialized across 16 local agents.</div></div>
+          <div class="flex gap-12"><div class="dot dot-c" style="margin-top:6px"></div><div style="font-size:13px"><span style="font-weight:700;color:var(--cyan)">Natural Language Edit Agent:</span> Standing by for plain text user modification prompts.</div></div>
+        </div>
+        <div class="flex gap-12" style="margin-top:24px">
+          <input class="input flex-1" id="agent-cmd-input" placeholder="Command your 16 agents (e.g. 'Multi-Language Agent, translate script to Hindi', 'Avatar background blue karo')..." onkeypress="if(event.key==='Enter') handleNLCommand('agent-cmd-input')">
+          <button class="btn btn-primary" onclick="handleNLCommand('agent-cmd-input')">Execute Command</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     VIEW: VISUAL LIBRARY
+═══════════════════════════════════════════════════════ -->
+<div class="view" id="view-library">
+  <div class="flex flex-1 overflow-hidden">
+    <div class="sidebar">
+      <div class="logo"><div class="logo-mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div><span class="logo-name">SmartEdit<span style="color:var(--purple)">AI</span></span></div>
+      <div class="nav-item" onclick="goTo('dashboard')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard</div>
+      <div class="nav-item active"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>Visual Library</div>
+      <div class="nav-section-label">Filter by Category</div>
+      <div class="nav-item active" onclick="filterLib(this,'all')">All Assets</div>
+      <div class="nav-item" onclick="filterLib(this,'photo')">📷 Photos</div>
+      <div class="nav-item" onclick="filterLib(this,'illustration')">🎨 Illustrations</div>
+      <div class="nav-item" onclick="filterLib(this,'diagram')">📊 Diagrams</div>
+      <div class="nav-item" onclick="filterLib(this,'chart')">📈 Charts</div>
+      <div class="nav-item" onclick="filterLib(this,'ai')">✨ AI Generated</div>
+      <div class="nav-item" onclick="filterLib(this,'video')">🎬 Stock Video</div>
+    </div>
+    <div class="scroll-area flex-1" style="background:#070707;padding:40px">
+      <div class="flex justify-between items-center" style="margin-bottom:28px">
+        <div><h2 class="h3" style="margin-bottom:4px">Visual Library</h2><p style="font-size:13px;color:var(--t2)">All assets automatically retrieved by AI for your project.</p></div>
+        <div class="flex gap-12">
+          <input class="input" id="lib-search" placeholder="Search assets…" style="width:260px" oninput="filterLibSearch(this.value)"/>
+          <button class="btn btn-primary btn-sm" onclick="generateAIImage()">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            Generate with AI
+          </button>
+        </div>
+      </div>
+      <div id="lib-grid" class="lib-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     VIEW: ANALYTICS
+═══════════════════════════════════════════════════════ -->
+<div class="view" id="view-analytics">
+  <div class="flex flex-1 overflow-hidden">
+    <div class="sidebar">
+      <div class="logo"><div class="logo-mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div><span class="logo-name">SmartEdit<span style="color:var(--purple)">AI</span></span></div>
+      <div class="nav-item" onclick="goTo('dashboard')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard</div>
+      <div class="nav-item active"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Analytics</div>
+      <div class="nav-item" onclick="goTo('settings')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>Settings</div>
+    </div>
+    <div class="scroll-area flex-1" style="background:#070707;padding:40px">
+      <div class="flex justify-between items-center" style="margin-bottom:32px">
+        <h2 class="h3">AI Performance Analytics</h2>
+        <div class="pill-group" id="analytics-range">
+          <div class="pill-opt" onclick="pickPill(this)">7d</div>
+          <div class="pill-opt active" onclick="pickPill(this)">30d</div>
+          <div class="pill-opt" onclick="pickPill(this)">90d</div>
+        </div>
+      </div>
+      <!-- KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px">
+        <div class="stat-card"><div class="stat-label">Transcription Accuracy</div><div class="stat-kpi grad-text">99.4%</div><div class="bar-h" style="margin-top:10px"><div class="bar-h-fill" style="width:99%;background:var(--grad)"></div></div></div>
+        <div class="stat-card"><div class="stat-label">Avg. Process Time</div><div class="stat-kpi" style="color:var(--cyan)">48s</div><div class="stat-sub" style="color:var(--green);margin-top:6px">↓ 18% vs last month</div></div>
+        <div class="stat-card"><div class="stat-label">AI Visual Decisions</div><div class="stat-kpi" style="color:var(--purple)">4,218</div><div class="stat-sub" style="margin-top:6px">visual placements made</div></div>
+        <div class="stat-card"><div class="stat-label">Images Retrieved</div><div class="stat-kpi" style="color:var(--yellow)">1,847</div><div class="stat-sub" style="margin-top:6px">across 4 API sources</div></div>
+      </div>
+      <!-- Charts Row -->
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:18px;margin-bottom:18px">
+        <div class="stat-card">
+          <div class="h4" style="margin-bottom:20px">AI Confidence Score — Weekly</div>
+          <div id="weekly-chart" class="chart-bar-wrap" style="height:150px;align-items:flex-end"></div>
+          <div class="flex justify-between" style="margin-top:8px">
+            <span style="font-size:9px;color:var(--t4)">MON</span><span style="font-size:9px;color:var(--t4)">TUE</span><span style="font-size:9px;color:var(--t4)">WED</span><span style="font-size:9px;color:var(--t4)">THU</span><span style="font-size:9px;color:var(--t4)">FRI</span><span style="font-size:9px;color:var(--t4)">SAT</span><span style="font-size:9px;color:var(--t4)">SUN</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="h4" style="margin-bottom:20px">Visual Source Mix</div>
+          <div class="flex flex-col gap-14">
+            <div><div class="flex justify-between" style="margin-bottom:5px;font-size:12px"><span style="color:var(--t2)">Unsplash</span><span style="color:var(--t4)">42%</span></div><div class="bar-h"><div class="bar-h-fill" style="width:42%;background:var(--purple)"></div></div></div>
+            <div><div class="flex justify-between" style="margin-bottom:5px;font-size:12px"><span style="color:var(--t2)">Pexels</span><span style="color:var(--t4)">28%</span></div><div class="bar-h"><div class="bar-h-fill" style="width:28%;background:var(--blue)"></div></div></div>
+            <div><div class="flex justify-between" style="margin-bottom:5px;font-size:12px"><span style="color:var(--t2)">DALL·E 3</span><span style="color:var(--t4)">18%</span></div><div class="bar-h"><div class="bar-h-fill" style="width:18%;background:var(--cyan)"></div></div></div>
+            <div><div class="flex justify-between" style="margin-bottom:5px;font-size:12px"><span style="color:var(--t2)">Pixabay</span><span style="color:var(--t4)">12%</span></div><div class="bar-h"><div class="bar-h-fill" style="width:12%;background:var(--green)"></div></div></div>
+          </div>
+        </div>
+      </div>
+      <!-- Detail stats -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+        <div class="stat-card">
+          <div class="h4" style="margin-bottom:16px">Pipeline Timing</div>
+          <div class="flex flex-col gap-10">
+            <div class="flex justify-between" style="font-size:12px"><span class="t2">Audio Extraction</span><span class="mono" style="color:var(--cyan)">1.2s</span></div>
+            <div class="flex justify-between" style="font-size:12px"><span class="t2">Whisper V3 STT</span><span class="mono" style="color:var(--cyan)">8.4s</span></div>
+            <div class="flex justify-between" style="font-size:12px"><span class="t2">LLM Analysis</span><span class="mono" style="color:var(--cyan)">3.1s</span></div>
+            <div class="flex justify-between" style="font-size:12px"><span class="t2">Image Retrieval</span><span class="mono" style="color:var(--cyan)">12.3s</span></div>
+            <div class="flex justify-between" style="font-size:12px"><span class="t2">Timeline Build</span><span class="mono" style="color:var(--cyan)">0.9s</span></div>
+            <div class="flex justify-between" style="font-size:12px"><span class="t2">FFmpeg Render</span><span class="mono" style="color:var(--cyan)">22.1s</span></div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="h4" style="margin-bottom:16px">Model Performance</div>
+          <div class="flex flex-col gap-10">
+            <div class="flex justify-between" style="font-size:12px"><span class="t2">Whisper WER</span><span style="color:var(--green)">0.6%</span></div>
+            <div class="flex justify-between" style="font-size:12px"><span class="t2">LLM Relevance</span><span style="color:var(--green)">94.2%</span></div>
+            <div class="flex justify-between" style="font-size:12px"><span class="t2">Visual Match Score</span><span style="color:var(--green)">91.8%</span></div>
+            <div class="flex justify-between" style="font-size:12px"><span class="t2">Subtitle Accuracy</span><span style="color:var(--green)">99.1%</span></div>
+            <div class="flex justify-between" style="font-size:12px"><span class="t2">Sync Offset</span><span style="color:var(--green)">&lt; 1 frame</span></div>
+            <div class="flex justify-between" style="font-size:12px"><span class="t2">QA Pass Rate</span><span style="color:var(--green)">98.7%</span></div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="h4" style="margin-bottom:16px">Export Stats</div>
+          <div class="flex flex-col gap-10">
+            <div class="flex justify-between" style="font-size:12px"><span class="t2">Resolution</span><span class="mono" style="color:var(--purple)">3840×2160</span></div>
+            <div class="flex justify-between" style="font-size:12px"><span class="t2">Frame Rate</span><span class="mono" style="color:var(--purple)">60 fps</span></div>
+            <div class="flex justify-between" style="font-size:12px"><span class="t2">Codec</span><span class="mono" style="color:var(--purple)">H.265 HEVC</span></div>
+            <div class="flex justify-between" style="font-size:12px"><span class="t2">Bitrate</span><span class="mono" style="color:var(--purple)">45 Mbps</span></div>
+            <div class="flex justify-between" style="font-size:12px"><span class="t2">File Size</span><span class="mono" style="color:var(--purple)">214 MB</span></div>
+            <div class="flex justify-between" style="font-size:12px"><span class="t2">Color Space</span><span class="mono" style="color:var(--purple)">BT.2020 HDR</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     VIEW: SETTINGS
+═══════════════════════════════════════════════════════ -->
+<div class="view" id="view-settings">
+  <div class="flex flex-1 overflow-hidden">
+    <div class="sidebar">
+      <div class="logo"><div class="logo-mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div><span class="logo-name">SmartEdit<span style="color:var(--purple)">AI</span></span></div>
+      <div class="nav-item" onclick="goTo('dashboard')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard</div>
+      <div class="nav-item active"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>Settings</div>
+    </div>
+    <div class="scroll-area flex-1" style="background:#070707;padding:40px">
+      <div style="max-width:760px">
+        <h2 class="h3" style="margin-bottom:32px">AI Model Settings</h2>
+        <!-- Speech Recognition -->
+        <div class="setting-group">
+          <div class="setting-group-header" style="color:var(--purple)">🎙 Speech Recognition</div>
+          <div class="setting-row"><div><div class="setting-label">Whisper Model Version</div><div class="setting-desc">Higher accuracy = slower processing</div></div><div class="pill-group"><div class="pill-opt" onclick="pickPill(this)">V2 Fast</div><div class="pill-opt active" onclick="pickPill(this)">V3</div><div class="pill-opt" onclick="pickPill(this)">V3 Large</div></div></div>
+          <div class="setting-row"><div><div class="setting-label">Speaker Diarization</div><div class="setting-desc">Identify and label multiple speakers</div></div><div class="toggle on" onclick="toggleSetting(this,'diarization')"></div></div>
+          <div class="setting-row"><div><div class="setting-label">Auto Language Detection</div><div class="setting-desc">Detect spoken language automatically</div></div><div class="toggle on" onclick="toggleSetting(this,'lang-detect')"></div></div>
+          <div class="setting-row"><div><div class="setting-label">Confidence Threshold</div><div class="setting-desc">Flag words below this score for review</div></div><div class="flex items-center gap-12"><span class="range-value" id="conf-val">85%</span><input type="range" class="range" min="50" max="99" value="85" style="width:110px" oninput="document.getElementById('conf-val').textContent=this.value+'%'"></div></div>
+          <div class="setting-row"><div><div class="setting-label">Punctuation Restoration</div><div class="setting-desc">Automatically add punctuation to transcript</div></div><div class="toggle on" onclick="toggleSetting(this,'punct')"></div></div>
+        </div>
+        <!-- LLM -->
+        <div class="setting-group">
+          <div class="setting-group-header" style="color:var(--cyan)">🧠 Language Model (LLM)</div>
+          <div class="setting-row"><div><div class="setting-label">Primary LLM Engine</div><div class="setting-desc">Used for semantic analysis and visual query generation</div></div><div class="pill-group"><div class="pill-opt active" onclick="pickPill(this)">GPT-4o</div><div class="pill-opt" onclick="pickPill(this)">Claude 3.5</div><div class="pill-opt" onclick="pickPill(this)">Gemini 1.5</div></div></div>
+          <div class="setting-row"><div><div class="setting-label">Context Window</div><div class="setting-desc">Tokens available per analysis request</div></div><div class="pill-group"><div class="pill-opt" onclick="pickPill(this)">32K</div><div class="pill-opt active" onclick="pickPill(this)">128K</div></div></div>
+          <div class="setting-row"><div><div class="setting-label">Visual Sensitivity</div><div class="setting-desc">How aggressively AI places visuals (higher = more visuals)</div></div><div class="flex items-center gap-12"><span class="range-value" id="sens-val">72%</span><input type="range" class="range" min="10" max="100" value="72" style="width:110px" oninput="document.getElementById('sens-val').textContent=this.value+'%'"></div></div>
+          <div class="setting-row"><div><div class="setting-label">Emotion Detection</div><div class="setting-desc">Match visual intensity to speaker emotion</div></div><div class="toggle on" onclick="toggleSetting(this,'emotion')"></div></div>
+        </div>
+        <!-- Image Retrieval -->
+        <div class="setting-group">
+          <div class="setting-group-header" style="color:var(--blue)">🖼 Image & Video Retrieval</div>
+          <div class="setting-row"><div><div class="setting-label">Unsplash API</div><div class="setting-desc">High quality photography</div></div><div class="flex items-center gap-12"><div class="dot dot-g"></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div></div>
+          <div class="setting-row"><div><div class="setting-label">Pexels API</div><div class="setting-desc">Free stock photos and videos</div></div><div class="flex items-center gap-12"><div class="dot dot-g"></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div></div>
+          <div class="setting-row"><div><div class="setting-label">Pixabay API</div><div class="setting-desc">Royalty-free media library</div></div><div class="flex items-center gap-12"><div class="dot dot-g"></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div></div>
+          <div class="setting-row"><div><div class="setting-label">DALL·E 3 Generation</div><div class="setting-desc">Generate custom images when stock doesn't match</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="setting-row"><div><div class="setting-label">Candidates per Segment</div><div class="setting-desc">Images retrieved before AI selects the best</div></div><div class="flex items-center gap-12"><span class="range-value" id="cand-val">10</span><input type="range" class="range" min="3" max="20" value="10" style="width:110px" oninput="document.getElementById('cand-val').textContent=this.value"></div></div>
+        </div>
+        <!-- Rendering -->
+        <div class="setting-group">
+          <div class="setting-group-header" style="color:var(--green)">🎬 Rendering & Export</div>
+          <div class="setting-row"><div><div class="setting-label">Output Resolution</div></div><div class="pill-group"><div class="pill-opt" onclick="pickPill(this)">720p</div><div class="pill-opt" onclick="pickPill(this)">1080p</div><div class="pill-opt active" onclick="pickPill(this)">4K UHD</div></div></div>
+          <div class="setting-row"><div><div class="setting-label">Video Codec</div></div><div class="pill-group"><div class="pill-opt" onclick="pickPill(this)">H.264</div><div class="pill-opt active" onclick="pickPill(this)">H.265</div><div class="pill-opt" onclick="pickPill(this)">AV1</div></div></div>
+          <div class="setting-row"><div><div class="setting-label">Frame Rate</div></div><div class="pill-group"><div class="pill-opt" onclick="pickPill(this)">24fps</div><div class="pill-opt" onclick="pickPill(this)">30fps</div><div class="pill-opt active" onclick="pickPill(this)">60fps</div></div></div>
+          <div class="setting-row"><div><div class="setting-label">GPU Acceleration</div><div class="setting-desc">NVIDIA CUDA / Apple M-series</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+          <div class="setting-row"><div><div class="setting-label">HDR Output</div><div class="setting-desc">BT.2020 color space</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        </div>
+        <button class="btn btn-primary w-full" style="padding:14px;font-size:15px;border-radius:14px;margin-top:4px" onclick="saveSettings()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save All Settings
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     VIEW: ARCHITECTURE
+═══════════════════════════════════════════════════════ -->
+<div class="view" id="view-architecture">
+  <div class="flex flex-1 overflow-hidden">
+    <div class="sidebar">
+      <div class="logo"><div class="logo-mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div><span class="logo-name">SmartEdit<span style="color:var(--purple)">AI</span></span></div>
+      <div class="nav-item" onclick="goTo('dashboard')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard</div>
+      <div class="nav-item active"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>Architecture</div>
+    </div>
+    <div class="scroll-area flex-1" style="background:#070707;padding:52px">
+      <div class="text-center" style="margin-bottom:52px">
+        <div class="tag tag-p" style="margin-bottom:18px">NEURAL PIPELINE</div>
+        <h2 class="h2" style="margin-bottom:14px">AI Architecture</h2>
+        <p style="font-size:16px;color:var(--t2);max-width:500px;margin:0 auto">How SmartEditAI transforms raw video into a professional cinematic production — fully automatically.</p>
+      </div>
+      <div id="arch-diagram" style="max-width:680px;margin:0 auto;display:flex;flex-direction:column;align-items:center"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Agents Modules -->
+<script src="agents/agent-data.js"></script>
+<script src="agents/agent-pipeline-core.js"></script>
+<script src="agents/agent-engine.js"></script>
+<script src="agents/visual-library.js"></script>
+
+<!-- Backend API Modules -->
+<script src="backend/api/upload.js"></script>
+<script src="backend/api/pipeline.js"></script>
+<script src="backend/api/export.js"></script>
+
+<!-- Frontend App Logic -->
+<script src="frontend/app.js"></script>
+</body>
+</html>

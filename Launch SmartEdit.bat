@@ -1,0 +1,3 @@
+@echo off
+echo Starting SmartEdit AI Studio...
+npm start
