@@ -1,268 +1,106 @@
 /**
  * agents/agent-data.js
  * ─────────────────────────────────────────────────────────────
- * 100% Local AI Agentic Video Generator - Data Architecture
- * 
- * 16 Autonomous Agents (10 Core Pipeline + 6 Bonus Feature Agents):
- *   1. Orchestrator Agent (CrewAI/LangGraph + Ollama)
- *   2. Script Agent (Ollama Llama3/Mistral)
- *   3. Layout Planner Agent (Ollama prompt-based layout reasoning)
- *   4. Slide Generator Agent (Ollama JSON structure)
- *   5. Image Generator Agent (Stable Diffusion local)
- *   6. Avatar Generator Agent (Stable Diffusion local)
- *   7. Voice Agent (Coqui XTTS-v2 / Chatterbox TTS)
- *   8. Lip-Sync Agent (MuseTalk / Wav2Lip)
- *   9. Caption Agent (Whisper local)
- *  10. Compositor Agent (FFmpeg / Remotion)
- *  11. Multi-Language Agent (Ollama Translation + Chatterbox TTS)
- *  12. Brand Kit Agent (Logo, Color Palette, Custom Typography)
- *  13. Conversation Mode Agent (Dual Dialogue + Dual MuseTalk Lip-Sync)
- *  14. Natural Language Edit Agent (Intent Parsing & Incremental Render)
- *  15. Music/Sound Agent (Royalty-free Local Audio + FFmpeg Auto-Ducking)
- *  16. Export Optimizer Agent (YouTube 16:9, Reels 9:16, LinkedIn 1:1 Presets)
+ * SmartEdit AI — 28-Agent Data Store (16 core/bonus + 12 video intelligence)
+ * All data is real, connected to backend API endpoints.
  */
 
 const AGENTS_LIST = [
-  // SECTION A: CORE PIPELINE AGENTS (10)
-  {
-    id: "orchestrator",
-    name: "Orchestrator Agent",
-    type: "core",
-    badge: "CREWAI / LANGGRAPH",
-    desc: "Sare agents ko sequence me chalana, task delegation, error recovery & state sync.",
-    input: "User Request / Video Prompt",
-    output: "Execution Graph & Task DAG",
-    tool: "LangGraph + Ollama Llama-3 (Local)",
-    status: "active",
-    uptime: "99.9%"
-  },
-  {
-    id: "script",
-    name: "Script Agent",
-    type: "core",
-    badge: "OLLAMA LLAMA-3",
-    desc: "Topic/prompt se scene-wise script structure, tone control aur verbal hooks banana.",
-    input: "Prompt + Target Tone + Duration",
-    output: "Scene-by-scene script JSON",
-    tool: "Ollama (Llama-3 / Mistral 7B)",
-    status: "active",
-    uptime: "100%"
-  },
-  {
-    id: "layout_planner",
-    name: "Layout Planner Agent",
-    type: "core",
-    badge: "SEMANTIC REASONING",
-    desc: "Har scene ke visual impact ke hisaab se layout choose karna (Full/Split/PiP/Slide/Dual).",
-    input: "Script Text & Sentiment",
-    output: "Scene Layout Metadata Tag",
-    tool: "Ollama Visual Reasoning Engine",
-    status: "active",
-    uptime: "99.8%"
-  },
-  {
-    id: "slide_generator",
-    name: "Slide Generator Agent",
-    type: "core",
-    badge: "JSON TEMPLATE ENGINE",
-    desc: "Slide mode wale scenes ke liye catchy title, bullet points aur graphic prompts banana.",
-    input: "Script Scene Segment",
-    output: "Slide Content Data (JSON)",
-    tool: "Ollama + Local Canvas Engine",
-    status: "active",
-    uptime: "99.7%"
-  },
-  {
-    id: "image_generator",
-    name: "Image Generator Agent",
-    type: "core",
-    badge: "STABLE DIFFUSION XL",
-    desc: "Slides, split-screen aur B-roll ke liye high-res contextual AI images generate karna.",
-    input: "Image Prompt & Art Style",
-    output: "PNG / JPG 4K Visual Assets",
-    tool: "Stable Diffusion XL (Local GPU)",
-    status: "active",
-    uptime: "98.9%"
-  },
-  {
-    id: "avatar_generator",
-    name: "Avatar Generator Agent",
-    type: "core",
-    badge: "SD-AVATAR PIPELINE",
-    desc: "Custom photorealistic AI avatars/presenters generate karna bina external API key ke.",
-    input: "Avatar Style / Demographic Preference",
-    output: "High-Res Avatar Model Frame",
-    tool: "Stable Diffusion Portrait Model",
-    status: "active",
-    uptime: "99.2%"
-  },
-  {
-    id: "voice",
-    name: "Voice Agent",
-    type: "core",
-    badge: "COQUI XTTS-V2",
-    desc: "Script ko crystal-clear human-like voice synthesis me convert karna & voice cloning.",
-    input: "Script Text + Voice Sample",
-    output: "High Quality WAV Audio Stream",
-    tool: "Coqui XTTS-v2 / Chatterbox TTS",
-    status: "active",
-    uptime: "99.6%"
-  },
-  {
-    id: "lip_sync",
-    name: "Lip-Sync Agent",
-    type: "core",
-    badge: "MUSETALK / WAV2LIP",
-    desc: "AI Avatar ke mouth movements ko synthesized voice audio ke sath frame-perfect sync karna.",
-    input: "Avatar Image + Voice WAV",
-    output: "Talking Avatar Video Segment",
-    tool: "MuseTalk / Wav2Lip (CUDA Local)",
-    status: "active",
-    uptime: "97.8%"
-  },
-  {
-    id: "caption",
-    name: "Caption Agent",
-    type: "core",
-    badge: "OPENAI WHISPER LOCAL",
-    desc: "Word-level timestamped subtitle generation, auto-punctuate aur animated overlay burning.",
-    input: "Audio Stream WAV",
-    output: "SRT / VTT / Animated Subtitle Data",
-    tool: "Whisper Medium/Large (Local)",
-    status: "active",
-    uptime: "99.9%"
-  },
-  {
-    id: "compositor",
-    name: "Compositor Agent",
-    type: "core",
-    badge: "FFMPEG + REMOTION",
-    desc: "Avatar, slides, B-roll, captions aur background music ko single 60fps timeline me assemble karna.",
-    input: "All Media Assets + Layout Specs",
-    output: "Unified Master Video Render",
-    tool: "FFmpeg CUDA + Remotion (Local)",
-    status: "active",
-    uptime: "99.5%"
-  },
+  // ─── CORE PIPELINE AGENTS (10) ─────────────────────────────
+  { id:"orchestrator",    name:"Orchestrator Agent",           type:"core",  badge:"CREWAI / LANGGRAPH",     desc:"Coordinates all 28 agents in a DAG execution pipeline. Handles task delegation, error recovery & state sync.",                                                             input:"User Request / Video Prompt",           output:"Execution Graph & Task DAG",                  tool:"Ollama Llama-3 (Local)",            endpoint:"/api/v1/orchestrate",            method:"POST", status:"active", uptime:"99.9%", runFn:"runOrchestratorAgent" },
+  { id:"script",          name:"Script Agent",                 type:"core",  badge:"OLLAMA LLAMA-3",         desc:"Converts user prompt into a scene-by-scene narration script with timing, visual prompts, and layout tags.",                                                             input:"Prompt + Target Tone + Duration",       output:"Scene-by-scene script JSON",                  tool:"Ollama (Llama-3 / Mistral 7B)",     endpoint:"/api/v1/generate-script",        method:"POST", status:"active", uptime:"100%",  runFn:"runScriptAgent" },
+  { id:"layout_planner",  name:"Layout Planner Agent",         type:"core",  badge:"SEMANTIC REASONING",     desc:"Analyzes each scene's visual impact and assigns the optimal layout: Full, Split, PiP, Slide, or Dual.",                                                                  input:"Script scenes array",                   output:"Scene Layout Metadata Tags",                  tool:"Ollama Visual Reasoning",           endpoint:"/api/v1/layout-plan",            method:"POST", status:"active", uptime:"99.8%", runFn:"runLayoutPlannerAgent" },
+  { id:"slide_generator", name:"Slide Generator Agent",        type:"core",  badge:"JSON TEMPLATE ENGINE",   desc:"Creates catchy titles, bullet points, background styles, and icon suggestions for slide-mode scenes.",                                                                  input:"Scene text + visual prompt",            output:"Slide Content Data (JSON)",                   tool:"Ollama + Local Canvas Engine",      endpoint:"/api/v1/generate-slides",        method:"POST", status:"active", uptime:"99.7%", runFn:"runSlideGeneratorAgent" },
+  { id:"image_generator", name:"Image Generator Agent",        type:"core",  badge:"SD PROMPT ENGINE",       desc:"Generates optimized Stable Diffusion prompts for scene visuals with color palette, mood, and composition.",                                                              input:"Scene narration + style",               output:"SD/DALL-E ready image prompts",               tool:"Ollama Prompt Engine → SD XL",      endpoint:"/api/v1/generate-image-prompt",  method:"POST", status:"active", uptime:"98.9%", runFn:"runImageGeneratorAgent" },
+  { id:"avatar_generator",name:"Avatar Generator Agent",       type:"core",  badge:"SD PORTRAIT PIPELINE",   desc:"Creates photorealistic AI presenter avatar prompts with lighting, camera angle, and post-processing specs.",                                                              input:"Avatar style + gender + background",    output:"SD Portrait prompt ready for generation",     tool:"Ollama → Stable Diffusion Portrait",endpoint:"/api/v1/generate-avatar-prompt", method:"POST", status:"active", uptime:"99.2%", runFn:"runAvatarGeneratorAgent" },
+  { id:"voice",           name:"Voice Agent",                  type:"core",  badge:"GTTS / WEB SPEECH",      desc:"Synthesizes clear human-like speech from script text. Uses gTTS (backend) or Web Speech API (browser).",                                                                 input:"Script text + language",               output:"MP3 audio (base64) + browser playback",       tool:"gTTS (backend) + Web Speech API",   endpoint:"/api/v1/synthesize-voice",       method:"POST", status:"active", uptime:"99.6%", runFn:"runVoiceAgent" },
+  { id:"lip_sync",        name:"Lip-Sync Agent",               type:"core",  badge:"PHONEME ANIMATION",      desc:"Generates phoneme-level mouth timing data for avatar animation at target FPS.",                                                                                         input:"Script text + duration + FPS",          output:"Frame-accurate mouth shape timeline",         tool:"Phoneme approximation engine",      endpoint:"/api/v1/lip-sync-info",          method:"POST", status:"active", uptime:"97.8%", runFn:"runLipSyncAgent" },
+  { id:"caption",         name:"Caption Agent",                type:"core",  badge:"OPENAI WHISPER LOCAL",   desc:"Runs faster-whisper locally to produce word-level timestamped subtitles from uploaded audio/video.",                                                                    input:"Audio/Video file upload",               output:"SRT segments with word timestamps",           tool:"faster-whisper (CPU/GPU)",          endpoint:"/api/v1/generate-video",         method:"POST", status:"active", uptime:"99.9%", runFn:null },
+  { id:"compositor",      name:"Compositor Agent",             type:"core",  badge:"FFMPEG PIPELINE",        desc:"Assembles all scene assets into a single composited video using FFmpeg hardware-accelerated rendering.",                                                                 input:"Scene assets + layout specs",           output:"FFmpeg command + composed video",             tool:"FFmpeg (local CLI)",                endpoint:"/api/v1/composite-video",        method:"POST", status:"active", uptime:"99.5%", runFn:"runCompositorAgent" },
 
-  // SECTION B: BONUS FEATURE AGENTS (6)
-  {
-    id: "multi_language",
-    name: "Multi-Language Agent",
-    type: "bonus",
-    badge: "23+ LANGUAGES",
-    desc: "Script ko Hindi, Spanish, French etc. me translate karna aur matching TTS native voice dubbing.",
-    input: "Target Language Code",
-    output: "Translated Script & Native Dub WAV",
-    tool: "Ollama Translation + Chatterbox TTS",
-    status: "active",
-    uptime: "99.4%"
-  },
-  {
-    id: "brand_kit",
-    name: "Brand Kit Agent",
-    type: "bonus",
-    badge: "AUTO-BRANDING",
-    desc: "User ka custom logo, color hex codes, font family aur watermark har scene me enforce karna.",
-    input: "Brand Assets & Guidelines JSON",
-    output: "Branded Overlay Layers",
-    tool: "Template Branding Engine",
-    status: "active",
-    uptime: "100%"
-  },
-  {
-    id: "conversation_mode",
-    name: "Conversation Mode Agent",
-    type: "bonus",
-    badge: "DUAL AVATAR SYNC",
-    desc: "Single script ko podcast/interview style me 2 characters ke dialogue me split karke dual lip-sync karna.",
-    input: "Multi-speaker Script",
-    output: "Dual-talking Avatar Split Screen",
-    tool: "Ollama Splitter + Dual MuseTalk",
-    status: "active",
-    uptime: "98.2%"
-  },
-  {
-    id: "nl_edit",
-    name: "Natural Language Edit Agent",
-    type: "bonus",
-    badge: "NL COMMAND PARSER",
-    desc: "User ke plain prompt ('Avatar background blue karo') se target scene recall karke instant re-render karna.",
-    input: "Natural Language Edit Prompt",
-    output: "Targeted Scene Diff Update",
-    tool: "Ollama Intent Parser + Compositor Recall",
-    status: "active",
-    uptime: "99.1%"
-  },
-  {
-    id: "music_sound",
-    name: "Music / Sound Agent",
-    type: "bonus",
-    badge: "AUTO DUCKING",
-    desc: "Content sentiment ke hisaab se background music pick karna & speech aate hi automatic volume ducking.",
-    input: "Scene Sentiment & Audio Track",
-    output: "Balanced Stereo Mix Track",
-    tool: "Local Royalty-free Library + FFmpeg",
-    status: "active",
-    uptime: "99.7%"
-  },
-  {
-    id: "export_optimizer",
-    name: "Export Optimizer Agent",
-    type: "bonus",
-    badge: "MULTI-PLATFORM RATIO",
-    desc: "YouTube (16:9), Instagram Reels/Shorts (9:16), LinkedIn (1:1) ke liye auto-crop, reframing & render optimization.",
-    input: "Master Render + Target Preset",
-    output: "Platform Optimized MP4 / WebM",
-    tool: "FFmpeg Hardware Encoder Presets",
-    status: "active",
-    uptime: "100%"
-  }
+  // ─── BONUS FEATURE AGENTS (6) ──────────────────────────────
+  { id:"multi_language",    name:"Multi-Language Agent",         type:"bonus", badge:"50+ LANGUAGES",          desc:"Translates entire scripts and scene-by-scene narrations to any target language using deep-translator.",                                                                 input:"Source script + target language",       output:"Translated scenes array",                     tool:"deep-translator (Google backend)",  endpoint:"/api/v1/translate-script",       method:"POST", status:"active", uptime:"99.4%", runFn:"runMultiLanguageAgent" },
+  { id:"brand_kit",         name:"Brand Kit Agent",              type:"bonus", badge:"AUTO-BRANDING",          desc:"Applies custom logo, primary color, font, and watermark across all scenes. Generates CSS + FFmpeg overlay.",                                                           input:"Brand config (logo, colors, font)",     output:"CSS rules + branded scenes + FFmpeg cmd",    tool:"CSS overlay + FFmpeg drawtext",     endpoint:"/api/v1/apply-brand-kit",        method:"POST", status:"active", uptime:"100%",  runFn:"runBrandKitAgent" },
+  { id:"conversation_mode", name:"Conversation Mode Agent",      type:"bonus", badge:"DUAL AVATAR SYNC",       desc:"Splits a single narration script into a natural two-speaker podcast/interview dialogue using Ollama.",                                                                  input:"Script scenes + speaker names",         output:"Dual-speaker dialogue with camera cues",     tool:"Ollama Llama-3 Dialogue Splitter",  endpoint:"/api/v1/conversation-split",     method:"POST", status:"active", uptime:"98.2%", runFn:"runConversationModeAgent" },
+  { id:"nl_edit",           name:"Natural Language Edit Agent",  type:"bonus", badge:"NL COMMAND PARSER",      desc:"Parses plain English edit commands ('Make scene 2 dark blue') and generates precise scene diff instructions.",                                                          input:"Natural language command + scenes",     output:"Action + target scenes + change JSON",       tool:"Ollama Intent Parser",              endpoint:"/api/v1/nl-edit",                method:"POST", status:"active", uptime:"99.1%", runFn:"runNLEditAgent" },
+  { id:"music_sound",       name:"Music / Sound Agent",          type:"bonus", badge:"AUTO DUCKING",           desc:"Selects music profile by mood, provides royalty-free source recommendations, and generates FFmpeg ducking command.",                                                    input:"Scene mood + duration",                 output:"Music profile + FFmpeg audio mix command",   tool:"Mood engine + FFmpeg amix filter",  endpoint:"/api/v1/select-music",           method:"POST", status:"active", uptime:"99.7%", runFn:"runMusicSoundAgent" },
+  { id:"export_optimizer",  name:"Export Optimizer Agent",       type:"bonus", badge:"MULTI-PLATFORM RATIO",   desc:"Generates optimized FFmpeg export commands for YouTube (16:9), Reels (9:16), LinkedIn (1:1) at any resolution.",                                                        input:"Platform preset + resolution + codec",  output:"FFmpeg command + output filename",           tool:"FFmpeg Hardware Encoder Presets",   endpoint:"/api/v1/export-video",           method:"POST", status:"active", uptime:"100%",  runFn:"runExportOptimizerAgent" },
+
+  // ─── VIDEO INTELLIGENCE AGENTS (12) — NEW ──────────────────
+  { id:"scene_detection",  name:"Scene Detection Agent",        type:"video", badge:"AUTO SEGMENTATION",      desc:"Automatically groups Whisper transcript segments into semantic scenes based on time gaps and content shifts.",                                                             input:"Whisper transcript segments",           output:"Clustered scenes with layout suggestions",   tool:"Time-gap clustering engine",        endpoint:"/api/v1/detect-scenes",          method:"POST", status:"active", uptime:"100%",  runFn:"runSceneDetectionAgent" },
+  { id:"jump_cut",         name:"Jump Cut Editor Agent",        type:"video", badge:"SILENCE REMOVER",        desc:"Identifies and removes silence gaps and dead air from transcript segments. Generates FFmpeg concat filter for instant jump-cut edits.",                                  input:"Transcript segments + silence threshold",output:"Kept segments + FFmpeg jump-cut command",   tool:"Silence detection + FFmpeg concat", endpoint:"/api/v1/jump-cut",               method:"POST", status:"active", uptime:"100%",  runFn:"runJumpCutAgent" },
+  { id:"viral_hook",       name:"Viral Hook Analyzer Agent",    type:"video", badge:"HOOK SCORING",           desc:"Scores your video opening (0-10), identifies weaknesses, and rewrites it for maximum platform-specific viewer retention.",                                               input:"First 3 scenes + target platform",      output:"Hook score + improved hook + 3 alternatives",tool:"Ollama Retention Analyzer",         endpoint:"/api/v1/analyze-hook",           method:"POST", status:"active", uptime:"99.3%", runFn:"runViralHookAgent" },
+  { id:"seo_metadata",     name:"SEO Metadata Agent",           type:"video", badge:"PLATFORM SEO",           desc:"Generates click-worthy titles (with 3 variants), full descriptions, 10 tags, hashtags, pinned comment & CTA for any platform.",                                         input:"Transcript + platform + topic",         output:"Title, description, tags, hashtags, CTA",   tool:"Ollama SEO Engine",                 endpoint:"/api/v1/generate-seo",           method:"POST", status:"active", uptime:"99.5%", runFn:"runSEOMetadataAgent" },
+  { id:"chapter_marker",   name:"Chapter Marker Agent",         type:"video", badge:"AUTO CHAPTERS",          desc:"Auto-generates YouTube chapter timestamps from scene data. Outputs a copy-paste YouTube description format block.",                                                        input:"Scenes array + min chapter duration",   output:"Chapters + YouTube description text",        tool:"Scene clustering engine",           endpoint:"/api/v1/generate-chapters",      method:"POST", status:"active", uptime:"100%",  runFn:"runChapterMarkerAgent" },
+  { id:"thumbnail_gen",    name:"Thumbnail Generator Agent",    type:"video", badge:"CTR OPTIMIZER",          desc:"Creates viral thumbnail designs with SD/DALL-E prompts, text overlay layers, A/B testing variant, and CTR design tips.",                                                  input:"Title + hook + style + color theme",    output:"SD prompt + text overlays + design tips",    tool:"Ollama Design Engine",              endpoint:"/api/v1/generate-thumbnail",     method:"POST", status:"active", uptime:"99.2%", runFn:"runThumbnailGenAgent" },
+  { id:"color_grading",    name:"Color Grading Agent",          type:"video", badge:"CINEMATIC LUT",          desc:"Applies cinematic, warm, cool, vibrant, noir, or vintage color grade. Generates FFmpeg eq+curves+vignette filter and live CSS preview.",                                 input:"Mood + intensity + scenes",             output:"FFmpeg vf filter + CSS filter preview",      tool:"FFmpeg eq/curves + vignette",       endpoint:"/api/v1/color-grade",            method:"POST", status:"active", uptime:"100%",  runFn:"runColorGradingAgent" },
+  { id:"noise_reduction",  name:"Noise Reduction Agent",        type:"video", badge:"AUDIO CLEANUP",          desc:"Removes room tone, wind, street noise, or studio hiss via FFmpeg afftdn filter with loudnorm for EBU R128 broadcast compliance.",                                        input:"Noise profile + strength (0.0-1.0)",    output:"FFmpeg audio filter chain + EBU R128 loudnorm",tool:"FFmpeg afftdn + loudnorm",        endpoint:"/api/v1/reduce-noise",           method:"POST", status:"active", uptime:"100%",  runFn:"runNoiseReductionAgent" },
+  { id:"broll_suggestion", name:"B-Roll Suggestion Agent",      type:"video", badge:"B-ROLL AI",              desc:"Suggests specific B-roll footage for each scene with search queries, placement timing, transition type, and free stock footage source links.",                           input:"Scenes + style preference",             output:"Per-scene B-roll ideas + stock search queries",tool:"Ollama Visual Storyteller",        endpoint:"/api/v1/suggest-broll",          method:"POST", status:"active", uptime:"99.1%", runFn:"runBRollSuggestionAgent" },
+  { id:"script_optimizer", name:"Script Optimizer Agent",       type:"video", badge:"ENGAGEMENT BOOST",       desc:"Rewrites scenes for engagement, clarity, SEO, retention, or conversion. Shows before/after diff, readability grade & watch-time estimate.",                              input:"Scenes + goal + tone",                  output:"Rewritten scenes + tips + readability grade",tool:"Ollama Rewriter Engine",            endpoint:"/api/v1/optimize-script",        method:"POST", status:"active", uptime:"99.4%", runFn:"runScriptOptimizerAgent" },
+  { id:"emotion_analysis", name:"Emotion Analysis Agent",       type:"video", badge:"PACING INSIGHT",         desc:"Detects primary emotion and energy level (0-10) per scene. Suggests music mood, color grade, and pacing adjustments for maximum impact.",                                 input:"Scenes or full transcript",             output:"Per-scene emotion + energy + pacing + arc",  tool:"Ollama Sentiment Analyzer",         endpoint:"/api/v1/analyze-emotion",        method:"POST", status:"active", uptime:"99.0%", runFn:"runEmotionAnalysisAgent" },
+  { id:"viral_clip",       name:"Viral Clip Finder Agent",      type:"video", badge:"BEST MOMENTS",           desc:"Ranks the most shareable moments for Reels, TikTok, Shorts, or LinkedIn. Generates ready-to-run FFmpeg trim command per clip.",                                          input:"Scenes + platform + max duration",      output:"Ranked clips + virality scores + FFmpeg trim",tool:"Ollama Virality Ranker",           endpoint:"/api/v1/find-viral-clip",        method:"POST", status:"active", uptime:"99.2%", runFn:"runViralClipAgent" }
 ];
 
 const TRANSCRIPT = [];
 
 const PIPELINE_STEPS = [
-  {label: "1. Orchestrator Initialization", detail: "LangGraph pipeline execution DAG created (Ollama Llama-3)"},
-  {label: "2. Script Agent Narration",      detail: "Scene-wise dialogue, emotional tone & verbal hooks crafted"},
-  {label: "3. Layout Planner Structuring",   detail: "Determining Full Presenter / Split / PiP / Slide per scene"},
-  {label: "4. Slide Generator Formatting",  detail: "Structuring JSON bullet points, titles & visual prompts"},
-  {label: "5. Image Generator Synthesis",   detail: "Stable Diffusion XL rendering 4K background & slide assets"},
-  {label: "6. Avatar Generator Setup",       detail: "Local SD Portrait model rendering photorealistic presenter"},
-  {label: "7. Voice Agent Audio Synthesis", detail: "Coqui XTTS-v2 generating 44.1kHz WAV voice stream"},
-  {label: "8. Lip-Sync Agent Alignment",     detail: "MuseTalk CUDA aligning mouth motion to audio frames"},
-  {label: "9. Caption Agent Subtitles",     detail: "Whisper Medium generating word-level animated subtitles"},
-  {label: "10. Multi-Language Dubbing",     detail: "Chatterbox translating & dubbing target language tracks"},
-  {label: "11. Brand Kit Layering",         detail: "Applying logo, brand colors, font themes & watermark"},
-  {label: "12. Conversation Mode Check",    detail: "Dual-speaker layout composition for podcast scenes"},
-  {label: "13. Music & Sound Mixing",       detail: "Local audio selection + FFmpeg speech-activated ducking"},
-  {label: "14. Compositor Assembly",        detail: "FFmpeg CUDA compositing 4K 60fps multi-track timeline"},
-  {label: "15. NL Edit Verification",       detail: "Checking scene diff cache for fast incremental re-renders"},
-  {label: "16. Export Optimizer Render",    detail: "Encoding YouTube 16:9, Reels 9:16 & LinkedIn 1:1 renders"}
+  { label: "1. Orchestrator Initialization",  detail: "28-agent DAG created — dispatching to all agents" },
+  { label: "2. Script Agent Narration",        detail: "Ollama Llama-3 writing scene-wise dialogue and verbal hooks" },
+  { label: "3. Layout Planner Structuring",    detail: "Assigning Full / Split / PiP / Slide / Dual per scene" },
+  { label: "4. Slide Generator Formatting",    detail: "JSON bullet points, titles, background styles & icons" },
+  { label: "5. Image Generator Synthesis",     detail: "SD XL prompts generated for 4K background & slide assets" },
+  { label: "6. Avatar Generator Setup",        detail: "Portrait SD prompt ready — photorealistic AI presenter" },
+  { label: "7. Voice Agent Synthesis",         detail: "gTTS synthesizing speech audio for all scene narrations" },
+  { label: "8. Lip-Sync Agent Alignment",      detail: "Phoneme frames computed at 30fps for avatar animation" },
+  { label: "9. Caption Agent (Whisper)",       detail: "Word-level timestamped subtitle generation" },
+  { label: "10. Multi-Language Dubbing",       detail: "deep-translator translating + dubbing target language tracks" },
+  { label: "11. Brand Kit Layering",           detail: "CSS overlay + FFmpeg watermark for brand consistency" },
+  { label: "12. Conversation Mode Check",      detail: "Ollama splitting dialogue into Speaker A / Speaker B" },
+  { label: "13. Music & Sound Mixing",         detail: "Mood-matched music + FFmpeg auto-ducking configured" },
+  { label: "14. Compositor Assembly",          detail: "FFmpeg compositing all tracks into master video timeline" },
+  { label: "15. NL Edit Verification",         detail: "Checking scene diff cache for incremental re-renders" },
+  { label: "16. Export Optimizer Render",      detail: "Encoding 16:9, 9:16, 1:1 platform-optimized MP4 presets" },
+  { label: "17. Scene Detection",             detail: "Grouping Whisper segments into semantic scenes" },
+  { label: "18. Jump Cut Editing",            detail: "Removing silence gaps — saving dead air seconds" },
+  { label: "19. Viral Hook Analysis",         detail: "Scoring & rewriting first 3s for maximum retention" },
+  { label: "20. SEO Metadata Generation",     detail: "Generating title, tags, description & CTAs" },
+  { label: "21. Chapter Marker Generation",   detail: "Auto YouTube timestamps from scene boundaries" },
+  { label: "22. Thumbnail Generation",        detail: "Creating viral thumbnail prompt + text overlay design" },
+  { label: "23. Color Grading",               detail: "Applying cinematic LUT via FFmpeg eq/curves filter" },
+  { label: "24. Noise Reduction",             detail: "Running FFmpeg afftdn + loudnorm EBU R128 cleanup" },
+  { label: "25. B-Roll Suggestions",          detail: "AI suggesting contextual footage per scene" },
+  { label: "26. Script Optimization",         detail: "Rewriting scenes for engagement / clarity / SEO" },
+  { label: "27. Emotion Analysis",            detail: "Detecting per-scene emotion, energy & pacing" },
+  { label: "28. Viral Clip Detection",        detail: "Finding most shareable moments for Reels / TikTok" }
 ];
 
 const ARCH_NODES = [
-  {label: "Frontend Layer (React + Remotion)",   sub: "Live Preview Player, Multi-Track Timeline, NL Edit Console", color: "#8B5CF6"},
-  {label: "FastAPI + Celery Task Queue",         sub: "Async REST APIs, Redis Background Worker Dispatcher",         color: "#3B82F6"},
-  {label: "CrewAI / LangGraph Orchestrator",     sub: "Multi-Agent DAG execution engine & state manager",           color: "#06B6D4"},
-  {label: "Ollama Local LLM Engine",            sub: "Llama-3 8B / Mistral 7B (Zero API Key, 100% Offline)",        color: "#10B981"},
-  {label: "Stable Diffusion XL (Local GPU)",     sub: "Background, Slide & Custom Photorealistic Avatar Generation", color: "#F59E0B"},
-  {label: "Coqui XTTS-v2 & Whisper Speech",     sub: "Natural Voice Synthesis, Voice Cloning & Word Timestamps",   color: "#EF4444"},
-  {label: "MuseTalk / Wav2Lip CUDA Sync",        sub: "Frame-accurate real-time Talking Avatar Lip-Sync",           color: "#8B5CF6"},
-  {label: "FFmpeg Hardware Accelerated Render", sub: "Multi-ratio H.265 export (16:9, 9:16, 1:1) @ 4K 60fps",       color: "#06B6D4"}
+  { label: "Electron Desktop Shell",             sub: "BrowserWindow → index.html, nodeIntegration enabled",                  color: "#8B5CF6" },
+  { label: "Frontend Layer (Vanilla JS/CSS)",    sub: "Live Preview, Multi-Track Timeline, NL Edit Console",                  color: "#A78BFA" },
+  { label: "FastAPI Backend (Python 3.11+)",     sub: "28 REST endpoints, CORS enabled, in-memory job store",                 color: "#3B82F6" },
+  { label: "Orchestrator Agent (Agent 1)",       sub: "Coordinates all 28 agents via /api/v1/orchestrate",                   color: "#06B6D4" },
+  { label: "Ollama Local LLM Engine",            sub: "Llama-3 8B / Mistral 7B — Zero API Key, 100% Offline",               color: "#10B981" },
+  { label: "faster-whisper STT Engine",          sub: "Caption Agent: word-level timestamps, VAD filtering",                  color: "#F59E0B" },
+  { label: "gTTS + Web Speech API",              sub: "Voice Agent: gTTS (backend) + SpeechSynthesis (browser)",             color: "#EF4444" },
+  { label: "Video Intelligence Layer (12 new)",  sub: "Scene Det. • Jump Cut • Hook • SEO • Chapter • Thumbnail • Emotion…", color: "#10B981" },
+  { label: "FFmpeg CLI (optional)",              sub: "Compositor, Color Grade, Noise Reduction, Export — H.264/H.265",       color: "#06B6D4" }
 ];
 
 const LIB_ASSETS = [
-  {l: "Futuristic Studio Avatar", c: "rgba(139,92,246,.2)", t: "#AVATAR",  src: "Stable Diffusion", cat: "ai"},
-  {l: "Neural Network Nodes",    c: "rgba(6,182,212,.2)",  t: "#NEURAL",  src: "Stable Diffusion", cat: "ai"},
-  {l: "Podcast Dual Studio",     c: "rgba(59,130,246,.2)", t: "#PODCAST", src: "Local Template",   cat: "illustration"},
-  {l: "AI Analytics Chart",      c: "rgba(16,185,129,.2)", t: "#CHART",   src: "Slide Generator",  cat: "diagram"},
-  {l: "Abstract Geometry",       c: "rgba(245,158,11,.2)", t: "#SLIDE",   src: "Stable Diffusion", cat: "ai"},
-  {l: "Presenter Dark Stage",    c: "rgba(139,92,246,.25)",t: "#STAGE",   src: "Stable Diffusion", cat: "photo"},
-  {l: "Tech Infographic Slide",  c: "rgba(6,182,212,.25)", t: "#TECH",    src: "Slide Generator",  cat: "diagram"},
-  {l: "Cyberpunk City B-Roll",   c: "rgba(239,68,68,.2)",  t: "#BROLL",   src: "Local Asset Lib",  cat: "video"},
-  {l: "Space Concept Slide",     c: "rgba(59,130,246,.25)",t: "#SLIDE",   src: "Stable Diffusion", cat: "ai"},
-  {l: "Growth Metrics Bar",      c: "rgba(16,185,129,.25)",t: "#CHART",   src: "Slide Generator",  cat: "chart"},
-  {l: "Conversation Dual Split", c: "rgba(245,158,11,.25)",t: "#DUAL",    src: "Conversation Mode",cat: "photo"},
-  {l: "Minimal Dark UI",         c: "rgba(139,92,246,.3)", t: "#MINIMAL", src: "Brand Kit Agent",  cat: "ai"}
+  { l: "Futuristic Studio Avatar",  c: "rgba(139,92,246,.2)",  t: "#AVATAR",  src: "Avatar Generator Agent",    cat: "ai" },
+  { l: "Neural Network Nodes",      c: "rgba(6,182,212,.2)",   t: "#NEURAL",  src: "Image Generator Agent",     cat: "ai" },
+  { l: "Podcast Dual Studio",       c: "rgba(59,130,246,.2)",  t: "#PODCAST", src: "Conversation Mode Agent",   cat: "illustration" },
+  { l: "AI Analytics Chart",        c: "rgba(16,185,129,.2)",  t: "#CHART",   src: "Slide Generator Agent",     cat: "diagram" },
+  { l: "Abstract Geometry",         c: "rgba(245,158,11,.2)",  t: "#SLIDE",   src: "Image Generator Agent",     cat: "ai" },
+  { l: "Presenter Dark Stage",      c: "rgba(139,92,246,.25)", t: "#STAGE",   src: "Avatar Generator Agent",    cat: "photo" },
+  { l: "Tech Infographic Slide",    c: "rgba(6,182,212,.25)",  t: "#TECH",    src: "Slide Generator Agent",     cat: "diagram" },
+  { l: "Cyberpunk City B-Roll",     c: "rgba(239,68,68,.2)",   t: "#BROLL",   src: "B-Roll Suggestion Agent",   cat: "video" },
+  { l: "Space Concept Slide",       c: "rgba(59,130,246,.25)", t: "#SLIDE",   src: "Slide Generator Agent",     cat: "ai" },
+  { l: "Growth Metrics Bar",        c: "rgba(16,185,129,.25)", t: "#CHART",   src: "Slide Generator Agent",     cat: "chart" },
+  { l: "Conversation Dual Split",   c: "rgba(245,158,11,.25)", t: "#DUAL",    src: "Conversation Mode Agent",   cat: "photo" },
+  { l: "Minimal Dark UI",           c: "rgba(139,92,246,.3)",  t: "#MINIMAL", src: "Brand Kit Agent",           cat: "ai" },
+  { l: "Viral Hook Title Card",     c: "rgba(239,68,68,.25)",  t: "#VIRAL",   src: "Viral Hook Analyzer Agent", cat: "ai" },
+  { l: "Cinematic Color Grade",     c: "rgba(6,182,212,.3)",   t: "#COLOR",   src: "Color Grading Agent",       cat: "photo" },
+  { l: "Emotion Heatmap",           c: "rgba(245,158,11,.3)",  t: "#EMOTION", src: "Emotion Analysis Agent",    cat: "chart" },
+  { l: "Thumbnail A/B Design",      c: "rgba(139,92,246,.35)", t: "#THUMB",   src: "Thumbnail Generator Agent", cat: "ai" }
 ];

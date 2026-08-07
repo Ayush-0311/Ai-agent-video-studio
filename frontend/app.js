@@ -86,7 +86,7 @@ function buildTranscript() {
   const scenes = (window.AgentPipeline && AgentPipeline.state.scenes) ? AgentPipeline.state.scenes : (typeof TRANSCRIPT !== 'undefined' ? TRANSCRIPT : []);
 
   if (scenes.length === 0) {
-    panel.innerHTML = `<div style="padding:40px 20px;text-align:center;color:var(--t4);font-size:12px">No script generated yet. Use the prompt box to start.</div>`;
+    panel.innerHTML = `<div style="padding:40px 20px;text-align:center;color:var(--t4);font-size:12px">No transcript yet. Upload a real video or audio file to run Whisper.</div>`;
     return;
   }
 
@@ -121,7 +121,7 @@ function buildDecisionPanel() {
   const scenes = (window.AgentPipeline && AgentPipeline.state.scenes) ? AgentPipeline.state.scenes : (typeof TRANSCRIPT !== 'undefined' ? TRANSCRIPT : []);
 
   if (scenes.length === 0) {
-    panel.innerHTML = `<div style="padding:40px 20px;text-align:center;color:var(--t4);font-size:12px">No agent decisions logged yet.</div>`;
+    panel.innerHTML = `<div style="padding:40px 20px;text-align:center;color:var(--t4);font-size:12px">No Whisper transcript segments loaded yet.</div>`;
     return;
   }
 
@@ -138,7 +138,7 @@ function buildDecisionPanel() {
       ${item.vis ? `
         <div style="font-size:11px;color:var(--t2);margin-bottom:7px;line-height:1.4">"${item.vis.query}"</div>
         <div class="dec-asset-preview" style="background:${item.vis.color}">${item.vis.label}</div>
-      ` : `<div style="font-size:11px;color:var(--t4)">Full Presenter View - Speech active.</div>`}
+      ` : `<div style="font-size:11px;color:var(--t4)">Real Whisper segment from uploaded media.</div>`}
     `;
     panel.appendChild(el);
   });
@@ -180,12 +180,11 @@ function buildTracks() {
       return;
   }
 
+  const sourceName = (window.AgentPipeline && AgentPipeline.state.sourceFileName) ? AgentPipeline.state.sourceFileName : 'Uploaded media';
   const TRACK_DEFS = [
-    { lbl:'AVATAR',  color:'rgba(59,130,246,.2)', border:'rgba(59,130,246,.5)', blocks:[{s:0,e:DURATION,t:'sd_avatar_presenter.mp4'}] },
-    { lbl:'LAYOUT',  color:'rgba(139,92,246,.2)', border:'rgba(139,92,246,.5)', blocks: scenes.map(t=>({s:t.s,e:t.e,t:(t.layout || 'Scene').toUpperCase()})) },
-    { lbl:'VOICE',   color:'rgba(245,158,11,.18)',border:'rgba(245,158,11,.5)',  blocks: scenes.map(t=>({s:t.s,e:t.e,t:'Coqui XTTS WAV'})) },
-    { lbl:'SUBS',    color:'rgba(6,182,212,.15)', border:'rgba(6,182,212,.4)',  blocks: scenes.map(t=>({s:t.s,e:t.e,t:'Whisper SRT'})) },
-    { lbl:'MUSIC',   color:'rgba(16,185,129,.15)',border:'rgba(16,185,129,.4)',  blocks:[{s:0,e:DURATION,t:'ambient_ducked_music.mp3'}] },
+    { lbl:'SOURCE', color:'rgba(59,130,246,.18)', border:'rgba(59,130,246,.5)', blocks:[{s:0,e:DURATION,t:sourceName}] },
+    { lbl:'CAPTIONS', color:'rgba(6,182,212,.15)', border:'rgba(6,182,212,.4)', blocks: scenes.map(t=>({s:t.s,e:t.e,t:'Whisper transcript'})) },
+    { lbl:'WORDS', color:'rgba(16,185,129,.14)', border:'rgba(16,185,129,.45)', blocks: scenes.map(t=>({s:t.s,e:t.e,t:`${(t.words || []).length} word timestamps`})) },
   ];
 
   TRACK_DEFS.forEach(td => {
@@ -229,12 +228,8 @@ function togglePlay() {
     if (overlay) overlay.style.display = 'none';
     if (ppBtn) ppBtn.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="white"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
     
-    // Voice Agent speaks current scene
-    const scenes = (window.AgentPipeline && AgentPipeline.state.scenes) ? AgentPipeline.state.scenes : TRANSCRIPT;
-    const seg = scenes.find(s => currentTime >= s.s && currentTime < s.e);
-    if (seg && window.AgentPipeline) {
-      AgentPipeline.speakScene(seg.text, AgentPipeline.state.language);
-    }
+    // TTS is handled dynamically in updatePlaybackUI during playback
+    window.currentSpeakingSceneId = null;
 
     playInterval = setInterval(tick, 100);
   } else {
@@ -284,6 +279,16 @@ function updatePlaybackUI() {
 
   const scenes = (window.AgentPipeline && AgentPipeline.state.scenes) ? AgentPipeline.state.scenes : TRANSCRIPT;
   const seg = scenes.find(s => currentTime >= s.s && currentTime < s.e);
+
+  if (isPlaying && seg && seg.id !== window.currentSpeakingSceneId) {
+    window.currentSpeakingSceneId = seg.id;
+    if (window.AgentPipeline && AgentPipeline.speakScene) {
+      AgentPipeline.speakScene(seg.text, AgentPipeline.state.language);
+    }
+  } else if (!seg) {
+    window.currentSpeakingSceneId = null;
+  }
+
 
   // Subtitle Overlay (Caption Agent)
   const subEl = document.getElementById('subtitle-display');

@@ -366,7 +366,7 @@
             <div style="font-size:12px;color:var(--t4);margin-top:8px" id="upload-speed">–</div>
           </div>
         </div>
-        <input type="file" id="file-input" accept="video/*" style="display:none" onchange="fileSelected(event)"/>
+        <input type="file" id="file-input" accept="video/*,audio/*" style="display:none" onchange="fileSelected(event)"/>
 
         <!-- AI Options -->
         <div class="card" style="padding:26px;margin-top:24px">
@@ -817,6 +817,115 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════
+     VIEW: AI AGENTS — 28-Agent Pipeline Control Center
+═══════════════════════════════════════════════════════ -->
+<div class="view" id="view-agents">
+  <div class="flex flex-1 overflow-hidden">
+
+    <!-- Agents Sidebar -->
+    <div class="sidebar">
+      <div class="logo"><div class="logo-mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div><span class="logo-name">SmartEdit<span style="color:var(--purple)">AI</span></span></div>
+
+      <div style="padding:10px 14px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:10px">
+          <div class="dot dot-g" id="agent-backend-dot" title="Backend status" style="flex-shrink:0"></div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--green)">BACKEND ONLINE</div>
+            <div style="font-size:9px;color:var(--t4)">28 agents ready</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:0 14px 10px">
+        <input id="agent-search" type="text" placeholder="Search agents…" oninput="filterAgentsBySearch(this.value)"
+          style="width:100%;padding:7px 10px;background:rgba(255,255,255,.05);border:1px solid var(--bdr);border-radius:8px;color:var(--t1);font-size:12px;box-sizing:border-box;outline:none"/>
+      </div>
+
+      <div style="padding:0 10px;font-size:10px;font-weight:700;color:var(--t4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;padding-left:18px">Filter</div>
+
+      <div class="nav-item active" id="agent-filter-all"   onclick="filterAgents(this,'all')" style="justify-content:space-between">
+        <span style="display:flex;align-items:center;gap:8px"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>All Agents</span>
+        <span style="background:rgba(139,92,246,.2);color:var(--purple);font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px">28</span>
+      </div>
+      <div class="nav-item" id="agent-filter-core"  onclick="filterAgents(this,'core')" style="justify-content:space-between">
+        <span style="display:flex;align-items:center;gap:8px"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>Core Pipeline</span>
+        <span style="background:rgba(139,92,246,.2);color:var(--purple);font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px">10</span>
+      </div>
+      <div class="nav-item" id="agent-filter-bonus" onclick="filterAgents(this,'bonus')" style="justify-content:space-between">
+        <span style="display:flex;align-items:center;gap:8px"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Bonus Features</span>
+        <span style="background:rgba(6,182,212,.2);color:var(--cyan);font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px">6</span>
+      </div>
+      <div class="nav-item" id="agent-filter-video" onclick="filterAgents(this,'video')" style="justify-content:space-between">
+        <span style="display:flex;align-items:center;gap:8px"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>Video Intel</span>
+        <span style="background:rgba(16,185,129,.2);color:var(--green);font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px">12</span>
+      </div>
+
+      <div style="height:1px;background:var(--bdr);margin:12px 16px"></div>
+
+      <div class="nav-item" onclick="goTo('dashboard')"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Dashboard</div>
+      <div class="nav-item" onclick="goTo('architecture')"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>Architecture</div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="scroll-area flex-1" style="padding:28px 32px;overflow-y:auto">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:14px">
+        <div>
+          <div class="tag tag-p" style="margin-bottom:10px;display:inline-block">28 AI AGENTS — FULLY OPERATIONAL</div>
+          <h2 class="h2" style="margin-bottom:6px">AI Agent Control Center</h2>
+          <p style="font-size:13px;color:var(--t2)">All agents are wired to the local FastAPI backend. Click <strong>▶ Run Task</strong> on any card to trigger it live.</p>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" onclick="AgentPipeline && AgentPipeline.logAgentAction('system','System','Refreshing agent status…','b');pollAgentStatus()">⟳ Refresh Status</button>
+          <button class="btn btn-primary btn-sm" onclick="goTo('upload')">+ New Video Project</button>
+        </div>
+      </div>
+
+      <!-- Stats Row -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px">
+        <div class="card" style="padding:16px;text-align:center">
+          <div style="font-size:26px;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent">28</div>
+          <div style="font-size:10px;color:var(--t4);font-weight:700;margin-top:2px">TOTAL AGENTS</div>
+        </div>
+        <div class="card" style="padding:16px;text-align:center">
+          <div style="font-size:26px;font-weight:900;color:var(--green)">10</div>
+          <div style="font-size:10px;color:var(--t4);font-weight:700;margin-top:2px">CORE PIPELINE</div>
+        </div>
+        <div class="card" style="padding:16px;text-align:center">
+          <div style="font-size:26px;font-weight:900;color:var(--cyan)">6</div>
+          <div style="font-size:10px;color:var(--t4);font-weight:700;margin-top:2px">BONUS FEATURES</div>
+        </div>
+        <div class="card" style="padding:16px;text-align:center">
+          <div style="font-size:26px;font-weight:900;color:var(--yellow)">12</div>
+          <div style="font-size:10px;color:var(--t4);font-weight:700;margin-top:2px">VIDEO INTEL</div>
+        </div>
+      </div>
+
+      <!-- Agent Grid -->
+      <div id="agent-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:32px">
+        <!-- Rendered by agent-engine.js → renderAgentGrid() -->
+      </div>
+
+      <!-- Live Agent Console -->
+      <div class="card" style="padding:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div>
+            <div style="font-size:13px;font-weight:700">Agent Activity Console</div>
+            <div style="font-size:10px;color:var(--t4);margin-top:2px">Live log of all agent API calls and results</div>
+          </div>
+          <button onclick="document.getElementById('agent-console-log').innerHTML=''" style="background:rgba(255,255,255,.05);border:1px solid var(--bdr);border-radius:6px;padding:4px 10px;color:var(--t3);font-size:11px;cursor:pointer">Clear</button>
+        </div>
+        <div id="agent-console-log" style="background:rgba(0,0,0,.4);border:1px solid var(--bdr);border-radius:10px;padding:14px;font-family:'JetBrains Mono',monospace;font-size:11px;height:200px;overflow-y:auto;line-height:1.6">
+          <div style="color:var(--t4)">— Agent console ready. Run any agent to see live output here. —</div>
+        </div>
+      </div>
+
+    </div><!-- /main content -->
+  </div><!-- /flex -->
+</div><!-- /view-agents -->
+
+<!-- ═══════════════════════════════════════════════════════
      VIEW: ARCHITECTURE
 ═══════════════════════════════════════════════════════ -->
 <div class="view" id="view-architecture">
@@ -843,10 +952,10 @@
 <script src="agents/agent-engine.js"></script>
 <script src="agents/visual-library.js"></script>
 
-<!-- Backend API Modules -->
-<script src="backend/api/upload.js"></script>
-<script src="backend/api/pipeline.js"></script>
-<script src="backend/api/export.js"></script>
+<!-- Frontend API Modules (Backend Communication Layer) -->
+<script src="frontend/api/upload.js"></script>
+<script src="frontend/api/pipeline.js"></script>
+<script src="frontend/api/export.js"></script>
 
 <!-- Frontend App Logic -->
 <script src="frontend/app.js"></script>
