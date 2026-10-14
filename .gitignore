@@ -6,3 +6,12 @@ __pycache__/
 backend/.venv/
 backend/uploads/
 backend/models/
+backend/studio-data/
+
+# ⚠️ Contains sensitive tokens — never push to GitHub
+Colab_Ollama_Setup.py
+.env
+*.env
+
+# Local speech test output
+backend/test.mp3

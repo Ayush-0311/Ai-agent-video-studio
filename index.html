@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="frontend/styles/main.css"/>
+<link rel="stylesheet" href="frontend/styles/generation.css"/>
 </head>
 <body>
 
@@ -41,11 +42,11 @@
       </div>
       <div class="setting-row">
         <div><div class="setting-label">Resolution</div></div>
-        <div class="pill-group"><div class="pill-opt" onclick="pickPill(this)">1080p</div><div class="pill-opt active" onclick="pickPill(this)">4K</div></div>
+        <div class="pill-group" id="real-export-resolution"><div class="pill-opt" onclick="pickPill(this)">720p</div><div class="pill-opt active" onclick="pickPill(this)">1080p</div></div>
       </div>
       <div class="setting-row">
         <div><div class="setting-label">Format</div></div>
-        <div class="pill-group"><div class="pill-opt active" onclick="pickPill(this)">MP4</div><div class="pill-opt" onclick="pickPill(this)">WebM</div></div>
+        <div class="pill-group"><div class="pill-opt active">MP4 · H.264</div></div>
       </div>
       <div class="setting-row">
         <div><div class="setting-label">Include Subtitles</div></div>
@@ -63,7 +64,7 @@
       <button class="btn btn-secondary flex-1" onclick="closeModal('export-modal')">Cancel</button>
       <button class="btn btn-primary flex-1" id="export-btn" onclick="startExport()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Export 4K MP4
+        Export MP4
       </button>
     </div>
   </div>
@@ -83,165 +84,121 @@
       <div class="lp-nav-links">
         <span class="lp-nav-link" onclick="scrollToSection('features')">Features</span>
         <span class="lp-nav-link" onclick="scrollToSection('workflow')">How it Works</span>
-        <span class="lp-nav-link" onclick="scrollToSection('tech')">Tech Stack</span>
-        <span class="lp-nav-link" onclick="scrollToSection('pricing')">Pricing</span>
+        <span class="lp-nav-link" onclick="scrollToSection('tech')">Connections</span>
+        <span class="lp-nav-link" onclick="scrollToSection('pricing')">Get started</span>
       </div>
       <div class="flex gap-8">
-        <button class="btn btn-secondary btn-sm" onclick="goTo('dashboard')">Sign In</button>
-        <button class="btn btn-primary btn-sm" onclick="goTo('dashboard')">Get Started Free</button>
+        <button class="btn btn-secondary btn-sm" onclick="goTo('dashboard')">Open projects</button>
+        <button class="btn btn-primary btn-sm" onclick="goTo('dashboard')">Open studio</button>
       </div>
     </nav>
 
-    <!-- HERO -->
     <section class="hero" id="hero">
-      <div class="orb" style="width:600px;height:600px;background:radial-gradient(circle,rgba(139,92,246,.18),transparent 70%);top:-120px;left:-80px;filter:blur(60px);animation:orbPulse 8s ease-in-out infinite"></div>
-      <div class="orb" style="width:500px;height:500px;background:radial-gradient(circle,rgba(6,182,212,.12),transparent 70%);bottom:-60px;right:-40px;filter:blur(60px);animation:orbPulse 11s ease-in-out infinite reverse"></div>
-      <div class="orb" style="width:400px;height:400px;background:radial-gradient(circle,rgba(59,130,246,.08),transparent 70%);top:40%;left:35%;filter:blur(80px);animation:orbPulse 14s ease-in-out infinite 2s"></div>
-      <div class="absolute inset-0 pointer-none" style="background-image:repeating-linear-gradient(0deg,transparent,transparent 59px,rgba(255,255,255,.012) 60px),repeating-linear-gradient(90deg,transparent,transparent 59px,rgba(255,255,255,.012) 60px)"></div>
       <div class="relative z-10" style="max-width:980px">
-        <div class="tag tag-p" style="margin-bottom:28px;padding:6px 16px;font-size:11px">
-          <div class="dot dot-p"></div>
-          AI VIDEO AUTOMATION ENGINE — PRODUCTION READY
+        <div class="tag tag-p" style="margin-bottom:28px">YOUR LOCAL VIDEO STUDIO</div>
+        <h1 class="h1" style="margin-bottom:24px">Your video.<br/><span class="grad-text">Your next edit.</span></h1>
+        <p style="font-size:19px;color:var(--t2);max-width:680px;margin:0 auto 32px;line-height:1.7">Edit your footage on this PC, or connect AI to turn an idea into a video. Review the result, save your project, then export an MP4.</p>
+        <div class="flex gap-16 justify-center" style="flex-wrap:wrap;margin-bottom:28px">
+          <button class="btn btn-primary" style="padding:15px 32px" onclick="openCreationPath('import')">Edit my video · Local</button>
+          <button class="btn btn-secondary" style="padding:15px 32px" onclick="openCreationPath('ai')">Create with AI · Colab required</button>
         </div>
-        <h1 class="h1" style="margin-bottom:24px">
-          Your Video.<br/>
-          <span class="grad-text">Edited by AI.</span><br/>
-          In 60 Seconds.
-        </h1>
-        <p style="font-size:19px;color:var(--t2);max-width:680px;margin:0 auto 48px;line-height:1.7">
-          Upload raw presenter footage. AI extracts audio, transcribes speech, understands context,
-          retrieves perfect visuals, syncs everything, adds subtitles, and renders a cinematic
-          4K video — <strong style="color:var(--t1)">fully automatically.</strong>
-        </p>
-        <div class="flex gap-16 justify-center" style="flex-wrap:wrap;margin-bottom:56px">
-          <button class="btn btn-primary" style="padding:15px 40px;font-size:16px;border-radius:14px" onclick="goTo('dashboard')">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 3l14 9-14 9V3z"/></svg>
-            Start Creating Free
-          </button>
-          <button class="btn btn-secondary" style="padding:15px 32px;font-size:16px;border-radius:14px" onclick="goTo('architecture')">
-            View AI Architecture
-          </button>
-        </div>
-        <!-- Stats bar -->
-        <div class="flex gap-40 justify-center" style="flex-wrap:wrap">
-          <div class="text-center"><div style="font-size:30px;font-weight:800" class="grad-text">99.4%</div><div class="stat-sub" style="margin-top:4px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;color:var(--t4)">Whisper Accuracy</div></div>
-          <div style="width:1px;background:var(--bdr)"></div>
-          <div class="text-center"><div style="font-size:30px;font-weight:800;color:var(--cyan)">&lt;60s</div><div class="stat-sub" style="margin-top:4px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;color:var(--t4)">Avg. Process Time</div></div>
-          <div style="width:1px;background:var(--bdr)"></div>
-          <div class="text-center"><div style="font-size:30px;font-weight:800;color:var(--green)">4K 60fps</div><div class="stat-sub" style="margin-top:4px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;color:var(--t4)">Max Output</div></div>
-          <div style="width:1px;background:var(--bdr)"></div>
-          <div class="text-center"><div style="font-size:30px;font-weight:800;color:var(--yellow)">11 Steps</div><div class="stat-sub" style="margin-top:4px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:10px;color:var(--t4)">AI Pipeline</div></div>
-        </div>
+        <button type="button" class="guide-link" onclick="openCreationGuide()">First time? Compare video types &amp; see the full flow →</button>
+        <p class="editor-help">H.264 MP4 · 720p / 1080p · 30 fps<br/>AI generation time depends on your connection, selected mode and GPU.</p>
       </div>
     </section>
-
-    <!-- FEATURES -->
-    <section style="padding:90px 60px;background:var(--bg1)" id="features">
-      <div class="text-center" style="margin-bottom:56px">
-        <div class="tag tag-c" style="margin-bottom:18px">FEATURES</div>
-        <h2 class="h2" style="margin-bottom:14px">Everything AI Needs<br/><span class="grad-text">to Edit Your Video</span></h2>
-        <p style="font-size:17px;color:var(--t2);max-width:560px;margin:0 auto">Every step of the production pipeline handled by specialized AI modules working in concert.</p>
+    <section id="creation-guide" aria-labelledby="creation-guide-title" class="creation-guide">
+      <p class="tag tag-p">FIRST TIME? START HERE</p>
+      <h2 id="creation-guide-title" tabindex="-1">What kind of video would you like to make?</h2>
+      <p class="guide-intro">Start with the result you want. Compare the examples and setup requirements below. Choosing an option only updates your settings; production starts when you click Generate video.</p>
+      <div class="guide-import">
+        <h3>Already have a video? Edit your footage locally</h3>
+        <p>Import an MP4, MOV, MKV or WebM file up to 500 MiB. Trim and split clips, adjust speed, add music and apply effects. Basic editing and export run on this PC without Colab.</p>
+        <p><strong>Your steps:</strong> Choose a file → optionally enable speech transcription → Import video → edit → Save project → Export → Download MP4. Transcription turns speech into captions and may download a model on first use.</p>
+        <button type="button" class="btn btn-secondary" onclick="openCreationPath('import')">Use my own video</button>
       </div>
-      <div class="feature-grid" style="max-width:1300px;margin:0 auto">
-        <div class="feature-card"><div class="feature-icon" style="background:rgba(139,92,246,.1)"><svg width="22" height="22" fill="none" stroke="var(--purple)" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></div><div class="h4" style="margin-bottom:7px">AI Speech Recognition</div><p style="font-size:13px;color:var(--t2);line-height:1.6">Whisper V3 with 99.4% accuracy. Word-level timestamps, speaker diarization, confidence scoring.</p></div>
-        <div class="feature-card"><div class="feature-icon" style="background:rgba(6,182,212,.1)"><svg width="22" height="22" fill="none" stroke="var(--cyan)" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div><div class="h4" style="margin-bottom:7px">Semantic Context AI</div><p style="font-size:13px;color:var(--t2);line-height:1.6">GPT-4o/Claude understands sentiment, metaphor, and emphasis to decide when visuals are needed.</p></div>
-        <div class="feature-card"><div class="feature-icon" style="background:rgba(59,130,246,.1)"><svg width="22" height="22" fill="none" stroke="var(--blue)" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></div><div class="h4" style="margin-bottom:7px">Auto Visual Retrieval</div><p style="font-size:13px;color:var(--t2);line-height:1.6">Searches Unsplash, Pexels, Pixabay and DALL·E 3 in parallel for contextually perfect assets.</p></div>
-        <div class="feature-card"><div class="feature-icon" style="background:rgba(16,185,129,.1)"><svg width="22" height="22" fill="none" stroke="var(--green)" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><div class="h4" style="margin-bottom:7px">Timeline Sync</div><p style="font-size:13px;color:var(--t2);line-height:1.6">Frame-perfect visual placement with AI-selected transitions. Smooth and professional every time.</p></div>
-        <div class="feature-card"><div class="feature-icon" style="background:rgba(245,158,11,.1)"><svg width="22" height="22" fill="none" stroke="var(--yellow)" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></div><div class="h4" style="margin-bottom:7px">Auto Subtitles</div><p style="font-size:13px;color:var(--t2);line-height:1.6">Word-level SRT/ASS generation in 50+ languages. Custom fonts, colors, animations, and positioning.</p></div>
-        <div class="feature-card"><div class="feature-icon" style="background:rgba(239,68,68,.1)"><svg width="22" height="22" fill="none" stroke="var(--red)" stroke-width="2" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div><div class="h4" style="margin-bottom:7px">4K GPU Rendering</div><p style="font-size:13px;color:var(--t2);line-height:1.6">FFmpeg with NVIDIA CUDA acceleration. H.265 HEVC encoding. Up to 4K 60fps HDR output.</p></div>
-        <div class="feature-card"><div class="feature-icon" style="background:rgba(139,92,246,.1)"><svg width="22" height="22" fill="none" stroke="var(--purple)" stroke-width="2" viewBox="0 0 24 24"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg></div><div class="h4" style="margin-bottom:7px">AI Background Music</div><p style="font-size:13px;color:var(--t2);line-height:1.6">Selects royalty-free music matching content mood. Auto-ducks when speech is present.</p></div>
-        <div class="feature-card"><div class="feature-icon" style="background:rgba(6,182,212,.1)"><svg width="22" height="22" fill="none" stroke="var(--cyan)" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div class="h4" style="margin-bottom:7px">Multi-Language Dub</div><p style="font-size:13px;color:var(--t2);line-height:1.6">AI voice cloning translates and dubs your video into 50+ languages while preserving your voice.</p></div>
-        <div class="feature-card"><div class="feature-icon" style="background:rgba(245,158,11,.1)"><svg width="22" height="22" fill="none" stroke="var(--yellow)" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div><div class="h4" style="margin-bottom:7px">AI Intro & Outro</div><p style="font-size:13px;color:var(--t2);line-height:1.6">Generates branded animated intro and outro using your logo and color palette automatically.</p></div>
-        <div class="feature-card"><div class="feature-icon" style="background:rgba(16,185,129,.1)"><svg width="22" height="22" fill="none" stroke="var(--green)" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div class="h4" style="margin-bottom:7px">Auto B-Roll</div><p style="font-size:13px;color:var(--t2);line-height:1.6">Intelligently inserts relevant stock footage clips as B-roll to maintain viewer engagement.</p></div>
-        <div class="feature-card"><div class="feature-icon" style="background:rgba(59,130,246,.1)"><svg width="22" height="22" fill="none" stroke="var(--blue)" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div><div class="h4" style="margin-bottom:7px">Smart Transitions</div><p style="font-size:13px;color:var(--t2);line-height:1.6">AI selects appropriate transitions: fade, slide, blur, zoom, dissolve, and 40+ more effects.</p></div>
-        <div class="feature-card"><div class="feature-icon" style="background:rgba(139,92,246,.1)"><svg width="22" height="22" fill="none" stroke="var(--purple)" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div class="h4" style="margin-bottom:7px">Quality Assurance AI</div><p style="font-size:13px;color:var(--t2);line-height:1.6">Automated quality check reviews sync accuracy, image relevance, and audio levels before export.</p></div>
+      <h3 class="guide-subtitle">Create a new video from an idea or script</h3>
+      <div class="guide-modes">
+        <article><span class="tag tag-g">EASIEST FIRST TRY</span><h3>Image story · Fastest</h3><p><strong>Result:</strong> AI pictures with pan and zoom, plus your selected narration and subtitles. Characters within the pictures do not move.</p><p><strong>Example:</strong> “Explain the water cycle” becomes a narrated sequence of clouds, rain and rivers.</p><p><strong>Needs:</strong> A connected planner and image service. Enable a narration service if you want a voiceover.</p><button type="button" class="btn btn-primary" onclick="chooseCreationMode('images')">Choose Image story</button></article>
+        <article><span class="tag tag-p">MOTION OPENING</span><h3>Hybrid · 1 motion shot + images</h3><p><strong>Result:</strong> An AI motion opening followed by pictures with pan and zoom. Narration and subtitles follow your selections.</p><p><strong>Example:</strong> A moving car in the opening shot, followed by images explaining its features.</p><p><strong>Needs:</strong> A planner, image service and Colab GPU with motion generation enabled. Usually takes longer than Image story.</p><button type="button" class="btn btn-secondary" onclick="chooseCreationMode('hybrid')">Choose Hybrid</button></article>
+        <article><span class="tag tag-p">ALL SHOTS MOVE</span><h3>Full AI motion · Slowest</h3><p><strong>Result:</strong> Generated movement in every scene, with optional narration and subtitles. Exact actions and consistent character appearance are not guaranteed.</p><p><strong>Example:</strong> A robot walks into a room → turns toward a window → walks outside.</p><p><strong>Needs:</strong> A connected planner and Colab GPU with motion generation enabled. This is the slowest option; start with a short video.</p><button type="button" class="btn btn-secondary" onclick="chooseCreationMode('motion')">Choose Full AI motion</button></article>
+        <article><span class="tag tag-p">TEACH / EXPLAIN</span><h3>Avatar explainer · Slides + voice</h3><p><strong>Result:</strong> A presenter alongside topic slides and narration. For example, “Explain photosynthesis” becomes a presenter-led lesson with illustrated slides.</p><p><strong>Illustrated · Fast:</strong> A drawn presenter with speech-driven mouth animation, blinks and gestures. Requires a planner, image service and narration service.</p><p><strong>AI talking avatar · Colab:</strong> An AI-generated face whose mouth follows the narration. It does not generate head or body gestures. Requires additional presenter setup and narration. Run Check setup → Test 5 seconds first.</p><div class="guide-actions"><button type="button" class="btn btn-secondary" onclick="chooseCreationMode('avatar','illustrated')">Choose Illustrated</button><button type="button" class="btn btn-secondary" onclick="chooseCreationMode('avatar','realistic')">Choose AI talking avatar</button></div></article>
+      </div>
+      <h3 class="guide-subtitle">Your AI video, step by step</h3>
+      <ol class="guide-flow">
+        <li><strong>Connect &amp; Test:</strong> Run the SmartEdit Colab notebook and paste its current ONE-PASTE CONNECTION LINK. Wait for the required services to become ready. Keep Colab running during generation.</li>
+        <li><strong>Idea + settings:</strong> Enter a topic or finished script. Choose the video type, language, format, target duration, narration and subtitles.</li>
+        <li><strong>Plan scenes (optional):</strong> Create an editable storyboard and review the scene text and order. This step does not produce a finished MP4.</li>
+        <li><strong>Draft video preview (optional):</strong> Create a 720p MP4 to check pacing, voice and subtitles. Hybrid and Full AI motion drafts use images, so they do not preview the final movement. Avatar drafts use your selected presenter and still require its setup.</li>
+        <li><strong>Generate video:</strong> Produce a video in the selected mode. The app also plans scenes if you have not already done so. Follow the progress panel; completion time depends on your GPU, connection, duration and mode.</li>
+        <li><strong>Review → Save → Export → Download:</strong> Preview or download the generated video. If you edit its timeline, use Save project to keep your editable work, then Export to create an updated MP4 and Download to save that file in your chosen folder.</li>
+      </ol>
+      <h3 class="guide-subtitle">Understand the settings</h3>
+      <div class="guide-settings">
+        <details><summary>Appearance, characters and video format</summary><dl>
+          <dt>Visual style</dt><dd>Cinematic realism gives a film-like look; 3D animation / avatar uses a rendered character style; Anime uses a drawn animation style; Documentary favors a natural look; Product showcase favors clean product shots. Style guides appearance. The Video creation mode determines how scenes move.</dd>
+          <dt>Character preference</dt><dd>Follow my prompt uses the character described in your text. Realistic presenter requests a human appearance; 3D animated avatar requests a 3D character. These preferences do not enable talking or lip-sync. Choose Avatar explainer for a talking presenter.</dd>
+          <dt>Video format</dt><dd>Landscape 16:9 suits YouTube videos and presentations. Portrait 9:16 suits Shorts and Reels. Square 1:1 suits square social posts. This setting controls the frame shape.</dd>
+          <dt>Motion detail</dt><dd>Fast draft is for composition checks and may show visible artifacts; Balanced is the middle option; High detail uses more processing and takes longer. This setting applies to Hybrid and Full AI motion. Exporting at 1080p cannot add detail missing from the source.</dd>
+        </dl></details>
+        <details><summary>Scripts, scenes, duration and online references</summary><dl>
+          <dt>Scenes</dt><dd>Auto shots lets AI plan shots from your idea. Sentences makes one scene per sentence in a finished script. Paragraphs splits a script at blank lines. Manual tags uses [Scene 1], [Scene 2] and so on to mark each scene. Your scene count must fit the target duration.</dd>
+          <dt>Target duration</dt><dd>The requested video length. Actual timing may change to fit narration. Hybrid and Full AI motion support 10–60 seconds; Image story and Avatar explainer support 10–180 seconds. Longer videos may require more processing.</dd>
+          <dt>Online references</dt><dd>Sends your topic to Wikipedia to gather background information. To work from a finished script, turn references off and use Sentences, Paragraphs or Manual tags. Review the planned scenes before generating.</dd>
+        </dl></details>
+        <details><summary>Voice, subtitles and presenter options</summary><dl>
+          <dt>Narration language / Add narration</dt><dd>Choose the language for the voiceover. Turn Add narration on for generated speech, or off to omit it. AI talking avatar requires narration. Use Voice settings &amp; preview to hear a sample; available voices depend on your setup.</dd>
+          <dt>Show subtitles</dt><dd>Displays generated scene text as captions in the video. This is separate from the narration toggle. For the actual spoken words in imported footage, use Transcribe speech.</dd>
+          <dt>Presenter / Color theme</dt><dd>Alex has a short-hair appearance; Maya has a long-hair appearance. Indigo studio and Teal studio set the slide colors. AI talking avatar generates its face automatically, so no photo upload is required.</dd>
+          <dt>Presenter layout</dt><dd>Side-by-side places the presenter and slides next to each other. Picture-in-picture Right or Left places a smaller presenter frame over that side of the slide.</dd>
+        </dl></details>
+        <details><summary>What is the difference between Save, Export and Download?</summary><dl>
+          <dt>Save project</dt><dd>Saves the editable timeline on this PC. Creating an MP4 is a separate step. Check the Saved/Unsaved indicator, and use Open projects to return to saved work.</dd>
+          <dt>Export</dt><dd>Renders your current edits into a new H.264 MP4 at 720p or 1080p, 30 fps. Wait for the export to finish.</dd>
+          <dt>Download MP4</dt><dd>Copies a completed video to your chosen folder. “Download previous export” means the file is an older version. Export again to include your latest edits.</dd>
+        </dl></details>
+      </div>
+      <p class="guide-next">Ready? Choose a video type above, or continue with your current selections.</p>
+      <button type="button" class="btn btn-secondary" onclick="openCreationPath('ai')">Back to my video setup</button>
+    </section>
+    <section id="features" style="padding:48px 32px;background:var(--bg1)">
+      <h2 class="h2 text-center" style="margin-bottom:28px">Choose the tools you need</h2>
+      <div class="feature-grid" style="max-width:1200px;margin:auto">
+        <div class="feature-card"><h3 class="h4">Edit your footage</h3><p class="editor-help">Trim, split, reorder, adjust clip speed and volume, add music, captions and effects. Basic editing and export run locally.</p></div>
+        <div class="feature-card"><h3 class="h4">Create from an idea</h3><p class="editor-help">Plan a storyboard, review a draft, then generate images, moving shots or a presenter video with connected AI services.</p></div>
+        <div class="feature-card"><h3 class="h4">Transcribe speech</h3><p class="editor-help">Optional Whisper transcription turns speech into editable captions. The first use may download a model. Speaker identification is not included.</p></div>
+        <div class="feature-card"><h3 class="h4">Ask for an edit</h3><p class="editor-help">Use supported English or Hinglish edit requests. Review the applied changes and undo them if needed. Flexible wording uses your AI connection.</p></div>
+        <div class="feature-card"><h3 class="h4">Preview and export</h3><p class="editor-help">Preview your timeline, then export 720p or 1080p H.264 video at 30 fps. Export resolution does not add missing detail to generated footage.</p></div>
+        <div class="feature-card"><h3 class="h4">Keep your projects</h3><p class="editor-help">Save editable projects to this PC. Completed exports remain available separately; changed projects need a new export.</p></div>
       </div>
     </section>
-
-    <!-- HOW IT WORKS -->
-    <section style="padding:90px 60px" id="workflow">
-      <div class="text-center" style="margin-bottom:56px">
-        <div class="tag tag-p" style="margin-bottom:18px">11-STEP PIPELINE</div>
-        <h2 class="h2" style="margin-bottom:14px">Zero Manual Editing.<br/><span class="grad-text">100% AI Automated.</span></h2>
-      </div>
-      <div class="step-grid" style="max-width:860px;margin:0 auto">
-        <div class="step-cell"><div class="step-num" style="background:rgba(139,92,246,.1);color:var(--purple);border:1px solid rgba(139,92,246,.25)">01</div><div><strong style="font-size:13px">Upload Raw Video</strong><p style="font-size:12px;color:var(--t3);margin-top:3px">MP4, MOV, AVI, WebM up to 10GB</p></div></div>
-        <div class="step-cell border-l"><div class="step-num" style="background:rgba(6,182,212,.1);color:var(--cyan);border:1px solid rgba(6,182,212,.25)">02</div><div><strong style="font-size:13px">Extract Audio</strong><p style="font-size:12px;color:var(--t3);margin-top:3px">FFmpeg lossless audio separation</p></div></div>
-        <div class="step-cell"><div class="step-num" style="background:rgba(139,92,246,.1);color:var(--purple);border:1px solid rgba(139,92,246,.25)">03</div><div><strong style="font-size:13px">Whisper STT</strong><p style="font-size:12px;color:var(--t3);margin-top:3px">Word-level timestamps, 0.6% WER</p></div></div>
-        <div class="step-cell border-l"><div class="step-num" style="background:rgba(59,130,246,.1);color:var(--blue);border:1px solid rgba(59,130,246,.25)">04</div><div><strong style="font-size:13px">LLM Analysis</strong><p style="font-size:12px;color:var(--t3);margin-top:3px">GPT-4o full semantic understanding</p></div></div>
-        <div class="step-cell"><div class="step-num" style="background:rgba(16,185,129,.1);color:var(--green);border:1px solid rgba(16,185,129,.25)">05</div><div><strong style="font-size:13px">Visual Decisions</strong><p style="font-size:12px;color:var(--t3);margin-top:3px">Breakpoint mapping engine</p></div></div>
-        <div class="step-cell border-l"><div class="step-num" style="background:rgba(245,158,11,.1);color:var(--yellow);border:1px solid rgba(245,158,11,.25)">06</div><div><strong style="font-size:13px">Search Queries</strong><p style="font-size:12px;color:var(--t3);margin-top:3px">Contextual asset retrieval prompts</p></div></div>
-        <div class="step-cell"><div class="step-num" style="background:rgba(139,92,246,.1);color:var(--purple);border:1px solid rgba(139,92,246,.25)">07</div><div><strong style="font-size:13px">Asset Retrieval</strong><p style="font-size:12px;color:var(--t3);margin-top:3px">4 APIs fetched in parallel</p></div></div>
-        <div class="step-cell border-l"><div class="step-num" style="background:rgba(6,182,212,.1);color:var(--cyan);border:1px solid rgba(6,182,212,.25)">08</div><div><strong style="font-size:13px">Timeline Build</strong><p style="font-size:12px;color:var(--t3);margin-top:3px">Frame-accurate 60fps composition</p></div></div>
-        <div class="step-cell"><div class="step-num" style="background:rgba(59,130,246,.1);color:var(--blue);border:1px solid rgba(59,130,246,.25)">09</div><div><strong style="font-size:13px">Add Subtitles</strong><p style="font-size:12px;color:var(--t3);margin-top:3px">SRT + ASS with custom styling</p></div></div>
-        <div class="step-cell border-l"><div class="step-num" style="background:rgba(16,185,129,.1);color:var(--green);border:1px solid rgba(16,185,129,.25)">10</div><div><strong style="font-size:13px">GPU Render</strong><p style="font-size:12px;color:var(--t3)">FFmpeg H.265 4K 60fps HDR</p></div></div>
-        <div class="step-cell" style="grid-column:1/-1;justify-content:center;gap:20px;background:rgba(139,92,246,.05);border-top:1px solid rgba(139,92,246,.15);border-bottom:none">
-          <div class="step-num" style="background:var(--grad);color:#fff;border:none;font-size:16px;width:44px;height:44px">11</div>
-          <div><strong style="font-size:17px" class="grad-text">Download Final 4K MP4</strong><p style="font-size:12px;color:var(--t3);margin-top:3px">Your cinematic video ready in under 60 seconds</p></div>
-        </div>
+    <section id="workflow" style="padding:48px 32px;max-width:1100px;margin:auto">
+      <h2 class="h2" style="margin-bottom:24px">From first edit to finished video</h2>
+      <div class="feature-grid">
+        <div class="feature-card"><h3>1. Import or plan</h3><p class="editor-help">Choose footage, or connect AI and describe your idea. Plan scenes creates an editable storyboard.</p></div>
+        <div class="feature-card"><h3>2. Review and save</h3><p class="editor-help">Edit the timeline. Save project keeps your editable work. Draft video preview tests the story; motion drafts use images.</p></div>
+        <div class="feature-card"><h3>3. Export and download</h3><p class="editor-help">Export creates a new MP4. Download copies that completed file to a folder you choose. Save your project separately for future edits.</p></div>
       </div>
     </section>
-
-    <!-- TECH STACK -->
-    <section style="padding:90px 60px;background:var(--bg1)" id="tech">
-      <div class="text-center" style="margin-bottom:56px">
-        <div class="tag tag-c" style="margin-bottom:18px">TECHNOLOGY</div>
-        <h2 class="h2" style="margin-bottom:14px">World-Class<br/><span class="grad-text">AI Infrastructure</span></h2>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:32px;max-width:1000px;margin:0 auto">
-        <div class="card" style="padding:28px">
-          <div class="panel-label" style="color:var(--purple);margin-bottom:20px">FRONTEND</div>
-          <div class="flex flex-col gap-8">
-            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>Next.js 14 (App Router)</div>
-            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>TypeScript + Zustand</div>
-            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>Tailwind CSS</div>
-            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>Framer Motion</div>
-            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>React Query</div>
-          </div>
-        </div>
-        <div class="card" style="padding:28px">
-          <div class="panel-label" style="color:var(--cyan);margin-bottom:20px">AI ENGINE</div>
-          <div class="flex flex-col gap-8">
-            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>OpenAI Whisper V3</div>
-            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>GPT-4o / Claude 3.5</div>
-            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>DALL·E 3 / Stable Diffusion</div>
-            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>PyTorch + LangChain</div>
-            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>Pyannote Diarization</div>
-          </div>
-        </div>
-        <div class="card" style="padding:28px">
-          <div class="panel-label" style="color:var(--blue);margin-bottom:20px">BACKEND & INFRA</div>
-          <div class="flex flex-col gap-8">
-            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>Python FastAPI</div>
-            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>FFmpeg + OpenCV</div>
-            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>PostgreSQL + Redis</div>
-            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>AWS S3 + CloudFront</div>
-            <div class="flex items-center gap-10 card" style="padding:10px 14px"><div class="dot dot-g"></div>Celery + RabbitMQ</div>
-          </div>
-        </div>
+    <section id="tech" style="padding:48px 32px;background:var(--bg1)">
+      <h2 class="h2 text-center" style="margin-bottom:24px">What needs a connection?</h2>
+      <div class="feature-grid" style="max-width:1100px;margin:auto">
+        <div class="feature-card"><h3>Local editing</h3><p class="editor-help">After setup, editing uploaded footage and exporting MP4 do not need Colab. First-time speech transcription may download its model.</p></div>
+        <div class="feature-card"><h3>AI generation</h3><p class="editor-help">Keep Colab running and paste its current one-paste connection link. Images, motion and realistic presenters need their services ready. Direct neural narration needs Internet.</p></div>
       </div>
     </section>
-
-    <!-- PRICING -->
-    <section style="padding:90px 60px" id="pricing">
-      <div class="text-center" style="margin-bottom:56px">
-        <div class="tag tag-g" style="margin-bottom:18px">PRICING</div>
-        <h2 class="h2" style="margin-bottom:14px">Simple, Transparent<br/><span class="grad-text">Pricing</span></h2>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px;max-width:960px;margin:0 auto">
-        <div class="price-card glass"><div class="tag tag-p" style="margin-bottom:16px">STARTER</div><div style="font-size:38px;font-weight:800;margin-bottom:4px">$0</div><div style="font-size:13px;color:var(--t4);margin-bottom:26px">5 videos / month</div><div class="flex flex-col gap-10" style="margin-bottom:26px"><div style="font-size:13px;color:var(--t2)">✓ 720p Output</div><div style="font-size:13px;color:var(--t2)">✓ Basic Subtitles</div><div style="font-size:13px;color:var(--t2)">✓ 10 AI Images/video</div><div style="font-size:13px;color:var(--t3)">✗ B-Roll insertion</div><div style="font-size:13px;color:var(--t3)">✗ Background music</div></div><button class="btn btn-secondary w-full" onclick="goTo('dashboard')">Get Started</button></div>
-        <div class="price-card" style="background:rgba(139,92,246,.07);border:2px solid rgba(139,92,246,.3);border-radius:18px;position:relative"><div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%)"><span class="tag tag-p">MOST POPULAR</span></div><div class="tag tag-p" style="margin-bottom:16px">PRO</div><div style="font-size:38px;font-weight:800;margin-bottom:4px" class="grad-text">$49</div><div style="font-size:13px;color:var(--t4);margin-bottom:26px">per month</div><div class="flex flex-col gap-10" style="margin-bottom:26px"><div style="font-size:13px;color:var(--t2)">✓ 50 videos/month</div><div style="font-size:13px;color:var(--t2)">✓ 4K Output</div><div style="font-size:13px;color:var(--t2)">✓ AI Image Generation</div><div style="font-size:13px;color:var(--t2)">✓ B-Roll + Music</div><div style="font-size:13px;color:var(--t2)">✓ Multi-language subs</div></div><button class="btn btn-primary w-full" onclick="goTo('dashboard')">Start Pro Trial</button></div>
-        <div class="price-card glass"><div class="tag tag-c" style="margin-bottom:16px">ENTERPRISE</div><div style="font-size:38px;font-weight:800;margin-bottom:4px;color:var(--cyan)">Custom</div><div style="font-size:13px;color:var(--t4);margin-bottom:26px">Unlimited everything</div><div class="flex flex-col gap-10" style="margin-bottom:26px"><div style="font-size:13px;color:var(--t2)">✓ Unlimited videos</div><div style="font-size:13px;color:var(--t2)">✓ Private GPU cluster</div><div style="font-size:13px;color:var(--t2)">✓ Custom AI fine-tuning</div><div style="font-size:13px;color:var(--t2)">✓ SLA + Priority support</div><div style="font-size:13px;color:var(--t2)">✓ White-label option</div></div><button class="btn btn-secondary w-full" onclick="toast('Sales team will contact you!')">Contact Sales</button></div>
-      </div>
+    <section id="pricing" style="padding:48px 32px;text-align:center">
+      <h2 class="h2">Start with your own footage</h2>
+      <p class="editor-help">This desktop project has no subscription or trial checkout. External service availability and limits depend on your setup.</p>
+      <button class="btn btn-primary" onclick="openCreationPath('import')">Import a video</button>
     </section>
 
     <!-- FOOTER -->
     <footer style="padding:48px 60px;border-top:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px">
       <div class="logo" style="margin:0"><div class="logo-mark" style="width:26px;height:26px"><svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div><span class="logo-name" style="font-size:14px">SmartEdit<span style="color:var(--purple)">AI</span></span></div>
       <div class="flex gap-24">
-        <span class="lp-nav-link">Privacy</span><span class="lp-nav-link">Terms</span><span class="lp-nav-link">Docs</span><span class="lp-nav-link">API</span>
+        <span class="editor-help">Projects are stored on this PC. Connected AI requests use the services you configure.</span>
       </div>
-      <div style="font-size:12px;color:var(--t4)">© 2025 SmartEditAI Inc. All rights reserved.</div>
+      <div style="font-size:12px;color:var(--t4)">SmartEdit AI · Desktop video studio</div>
     </footer>
   </div>
 </div>
@@ -266,34 +223,31 @@
       <div class="nav-item" data-view="settings" onclick="goTo('settings')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>Settings</div>
       <div class="sidebar-bottom">
         <div class="card" style="padding:12px;margin-bottom:10px">
-          <div class="flex justify-between items-center" style="margin-bottom:7px"><span class="section-label">GPU Cluster</span><div class="dot dot-g"></div></div>
-          <div class="bar-h" style="margin-bottom:6px"><div class="bar-h-fill" style="width:65%;background:var(--grad)"></div></div>
-          <div style="font-size:10px;color:var(--t4)">H100 · 65% utilization</div>
+          <div class="section-label" style="margin-bottom:7px">Rendering</div>
+          <div style="font-size:11px;color:var(--t3)">Local MP4 export · Connect Colab in Settings for AI generation.</div>
         </div>
         <div class="nav-item" onclick="goTo('landing')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Back to Landing</div>
       </div>
     </div>
     <div class="scroll-area flex-1" style="background:#070707;padding:40px">
       <div class="flex justify-between items-center" style="margin-bottom:36px">
-        <div><h2 style="font-size:26px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px">Good Morning, Alex 👋</h2><p style="font-size:13px;color:var(--t2)">You have 3 projects ready for export today.</p></div>
+        <div><h2 style="font-size:26px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px">Your video workspace</h2><p style="font-size:13px;color:var(--t2)">Create, edit and export. Your saved projects appear below.</p></div>
         <button class="btn btn-primary" onclick="goTo('upload')"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12l7-7 7 7"/></svg>New Video Project</button>
       </div>
       <!-- Stats -->
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:36px">
-        <div class="stat-card"><div class="stat-label">Total Videos</div><div class="stat-kpi">0</div><div class="stat-sub" style="color:var(--t4)">No videos yet</div></div>
-        <div class="stat-card"><div class="stat-label">Avg. Process Time</div><div class="stat-kpi" style="color:var(--cyan)">0s</div><div class="stat-sub" style="color:var(--t4)">-</div></div>
-        <div class="stat-card"><div class="stat-label">Images Retrieved</div><div class="stat-kpi" style="color:var(--purple)">0</div><div class="stat-sub">-</div></div>
-        <div class="stat-card"><div class="stat-label">AI Confidence</div><div class="stat-kpi" style="color:var(--yellow)">0%</div><div class="stat-sub">-</div></div>
+        <div class="stat-card"><div class="stat-label">Total Videos</div><div class="stat-kpi" id="dash-total-videos">0</div><div class="stat-sub" style="color:var(--t4)">No videos yet</div></div>
+        <div class="stat-card"><div class="stat-label">Avg. Process Time</div><div class="stat-kpi" style="color:var(--cyan)" id="dash-proc-time">0s</div><div class="stat-sub" style="color:var(--t4)">-</div></div>
+        <div class="stat-card"><div class="stat-label">Images Retrieved</div><div class="stat-kpi" style="color:var(--purple)" id="dash-images">0</div><div class="stat-sub">-</div></div>
+        <div class="stat-card"><div class="stat-label">AI Confidence</div><div class="stat-kpi" style="color:var(--yellow)" id="dash-confidence">0%</div><div class="stat-sub">-</div></div>
       </div>
       <!-- Projects -->
+      <!-- ═══════════════════════════════════════════════════
+           RECENT PROJECTS
+      ════════════════════════════════════════════════════ -->
       <div class="flex justify-between items-center" style="margin-bottom:18px">
         <div class="h4">Recent Projects</div>
-        <div class="sub-tabs" id="dash-tabs">
-          <div class="sub-tab active" onclick="subTab(this,event)">All</div>
-          <div class="sub-tab" onclick="subTab(this,event)">Processing</div>
-          <div class="sub-tab" onclick="subTab(this,event)">Ready</div>
-          <div class="sub-tab" onclick="subTab(this,event)">Draft</div>
-        </div>
+        <button class="btn btn-secondary btn-sm" onclick="refreshStudioProjects()">Refresh projects</button>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px" id="projects-grid">
         <div class="proj-card" onclick="goTo('upload')" style="border-style:dashed">
@@ -318,28 +272,137 @@
       <div class="nav-item" onclick="goTo('dashboard')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="M12 5l-7 7 7 7"/></svg>Back to Dashboard</div>
       <div class="nav-item active"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Upload Video</div>
     </div>
-    <div class="scroll-area flex-1" style="background:#070707;padding:52px">
-      <div style="max-width:760px;margin:0 auto">
+    <div class="scroll-area flex-1 generation-page">
+      <div class="generation-page-inner">
         <h2 class="h3" style="margin-bottom:8px">Create Your Video</h2>
-        <p style="color:var(--t2);margin-bottom:24px">AI will automatically generate your video from a prompt or extract audio from an uploaded video to render a new cinematic experience.</p>
-
-        <!-- Prompt Zone -->
-        <div class="card" style="padding:24px;margin-bottom:24px">
-          <div style="font-weight:700;font-size:14px;margin-bottom:8px;color:var(--t1)">1. Generate from Prompt (Text-to-Video)</div>
-          <p style="font-size:12px;color:var(--t3);margin-bottom:12px">Describe your video, topic, and style. The Orchestrator Agent will write the script and generate all visuals.</p>
-          <textarea id="upload-prompt-input" style="width:100%;height:100px;background:var(--bg1);border:1px solid var(--bdr);border-radius:12px;padding:14px;color:#fff;font-size:14px;font-family:inherit;resize:none;margin-bottom:12px" placeholder="e.g., Create a 60-second YouTube Shorts video about the history of artificial intelligence. Make it engaging with a split-screen podcast layout..."></textarea>
-          
-          <div class="flex items-center gap-10">
-            <span style="font-size:12px;color:var(--t3);font-weight:600">Video Duration:</span>
-            <select id="upload-duration" style="background:var(--bg1);border:1px solid var(--bdr);border-radius:8px;padding:6px 12px;color:#fff;font-size:12px;outline:none">
-              <option value="15">15 Seconds</option>
-              <option value="30" selected>30 Seconds</option>
-              <option value="60">1 Minute</option>
-              <option value="120">2 Minutes</option>
-              <option value="300">5 Minutes (Max)</option>
-            </select>
-          </div>
+        <div class="creation-paths" style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:10px">
+          <button style="background:none;border:0;padding:0;color:var(--cyan);font:inherit;cursor:pointer" onclick="openCreationPath('import')">Edit my video · Local</button>
+          <button style="background:none;border:0;padding:0;color:var(--purple);font:inherit;cursor:pointer" onclick="openCreationPath('ai')">Create with AI · Colab required</button>
         </div>
+
+        <!-- ═══════════════════════════════════════════════════
+             🔌 COLAB CONNECT PANEL
+        ════════════════════════════════════════════════════ -->
+        <div id="colab-connect-panel" style="margin-bottom:24px;background:linear-gradient(135deg,rgba(139,92,246,.08),rgba(6,182,212,.05));border:1px solid rgba(139,92,246,.25);border-radius:16px;padding:22px 24px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+            <div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:16px">🔌</span>
+                <span style="font-size:14px;font-weight:700;color:#fff">Connect AI services</span>
+                <div id="colab-status-dot" class="dot" style="background:#EF4444;width:8px;height:8px" title="Offline"></div>
+                <span id="colab-status-text" style="font-size:11px;color:var(--t4);font-weight:600">OFFLINE</span>
+              </div>
+              <div style="font-size:11px;color:var(--t3);margin-top:3px;margin-left:26px">Paste the complete ONE-PASTE CONNECTION LINK from the running Colab cell (includes the access token).</div>
+            </div>
+            <div id="colab-model-badge" style="display:none;background:rgba(139,92,246,.15);border:1px solid rgba(139,92,246,.3);border-radius:8px;padding:4px 12px;font-size:11px;color:var(--purple);font-weight:700">qwen3:8b</div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <input id="colab-url-input" type="text"
+              placeholder="Paste the full link: https://…/#smartedit=…"
+              style="flex:1;min-width:260px;background:rgba(0,0,0,.4);border:1px solid rgba(139,92,246,.3);border-radius:10px;padding:10px 14px;color:#fff;font-size:13px;outline:none;font-family:JetBrains Mono,monospace"
+              oninput="document.getElementById('colab-url-input').style.borderColor='rgba(139,92,246,.3)'"/>
+            <button onclick="connectColab()" id="colab-connect-btn"
+              style="background:linear-gradient(135deg,#8B5CF6,#06B6D4);color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;transition:opacity .2s"
+              onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+              ✅ Connect &amp; Test
+            </button>
+            <button onclick="checkColabStatus()" title="Reconnect / Refresh status"
+              style="background:rgba(255,255,255,.06);border:1px solid var(--bdr);border-radius:10px;padding:10px 14px;color:var(--t3);font-size:13px;cursor:pointer;transition:opacity .2s"
+              onmouseover="this.style.opacity='.7'" onmouseout="this.style.opacity='1'">🔄</button>
+          </div>
+          <div id="colab-connect-msg" style="margin-top:10px;font-size:12px;color:var(--t4);display:none"></div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════
+             🎬 GENERATE FULL VIDEO (SCRIPT-TO-VIDEO)
+        ════════════════════════════════════════════════════ -->
+        <section id="generation-panel" aria-labelledby="generation-title">
+          <header class="generation-header">
+            <div><h3 id="generation-title">Prompt to video</h3><p>Describe your idea. <button type="button" class="guide-link" onclick="openCreationGuide()">Video types &amp; step-by-step guide</button></p></div>
+            <span class="generation-badge">AI STUDIO</span>
+          </header>
+          <div class="generation-grid">
+            <div class="generation-prompt">
+              <label for="gen-video-prompt">Your video idea <span>Hindi or English</span></label>
+              <textarea id="gen-video-prompt" placeholder="Describe the subject, action and style, or paste your script.&#10;&#10;Example: A blue-haired avatar wakes in a holographic chamber. Start wide, then move close to his eyes. Cinematic lighting, blue accents."></textarea>
+              <div class="generation-prompt-tools">
+                <button type="button" onclick="generateScriptWithAI()" id="edit-ai-btn">✨ Plan scenes</button>
+                <label for="edit-ai-scene-type">Scenes
+                  <select id="edit-ai-scene-type" aria-describedby="scene-type-help"><option value="auto">Auto shots</option><option value="sentences">Sentences</option><option value="paragraphs">Paragraphs</option><option value="manual">Manual tags</option></select>
+                </label>
+              </div>
+              <div class="generation-speed">                <label for="gen-motion-preset">Motion detail
+                  <select id="gen-motion-preset"><option value="balanced">Balanced · 30 steps</option><option value="preview">Fast draft · 12 steps, less detail</option><option value="quality">High detail · 50 steps, slow</option></select>
+                </label></div>
+              <fieldset id="gen-presenter-options" class="presenter-options" hidden>
+                <legend>Presenter</legend>
+                <label class="presenter-kind-label" for="gen-presenter-kind">Presenter type
+                  <select id="gen-presenter-kind"><option value="realistic" selected>MuseTalk · Talking portrait</option><option value="illustrated">Illustrated animation · No lip-sync</option></select>
+                </label>
+                <div id="real-presenter-options" hidden>
+                  <p>Your avatar is created automatically. Enter a topic and choose Alex or Maya below — no photo or video upload needed.</p>
+                  <p id="presenter-runtime-status" role="status">Check Colab setup before generating.</p>
+                  <div class="presenter-test-actions"><button id="presenter-check" type="button" class="btn btn-secondary btn-sm">Check setup</button><button id="presenter-test" type="button" class="btn btn-secondary btn-sm">Test 5 seconds</button></div>
+                  <details><summary>First-time setup</summary><p>Open the updated SmartEdit Colab notebook, MuseTalk is enabled by default; run the cell on a T4 GPU and reconnect. First setup downloads several GB. No paid AI API key is needed.</p><p>The image model creates one presenter face; MuseTalk animates its mouth using your narration. The same face is reused in every scene. This is a talking portrait, without generated head or body gestures. Use the test to review voice and lip-sync, including Hindi.</p></details>
+                </div>
+                <div class="generation-fields">
+                  <label for="gen-presenter-layout">Layout<select id="gen-presenter-layout"><option value="side">Side-by-side</option><option value="pip-right">Picture-in-picture · Right</option><option value="pip-left">Picture-in-picture · Left</option></select></label>
+                  <label for="gen-presenter-character">Presenter<select id="gen-presenter-character"><option value="alex">Alex · Short hair</option><option value="maya">Maya · Long hair</option></select></label>
+                  <label for="gen-presenter-theme">Color theme<select id="gen-presenter-theme"><option value="indigo">Indigo studio</option><option value="teal">Teal studio</option></select></label>
+                </div>
+                <p><span id="presenter-description">Illustrated mouth animation follows your narration, with blinks and gestures. Slides use AI images and editable text. No realistic human lip-sync.</span></p>
+              </fieldset>
+              <p id="scene-type-help" class="generation-note">Auto plans shots from your idea. Other modes split a finished script.</p>
+              <label class="generation-research"><input id="gen-research" type="checkbox" checked> Online references <span>· topic sent to Wikipedia</span></label>
+            </div>
+            <div class="generation-settings">
+              <div class="generation-fields">
+                <label for="gen-video-mode">Video creation
+                  <select id="gen-video-mode"><option value="hybrid">Hybrid · 1 motion shot + images</option><option value="motion">Full AI motion · Slowest</option><option value="images">Image story · Fastest</option><option value="avatar">Avatar explainer · Slides + voice</option></select>
+                </label>
+                <label for="gen-video-style">Visual style
+                  <select id="gen-video-style">
+                    <option value="cinematic realism, detailed subjects, dramatic lighting, coherent physical movement">Cinematic realism</option>
+                    <option value="high quality 3D animation, detailed character design, cinematic lighting, smooth expressive movement">3D animation / avatar</option>
+                    <option value="anime film, expressive characters, hand-painted backgrounds, dynamic movement">Anime</option>
+                    <option value="documentary photography, natural light, grounded realistic movement">Documentary</option>
+                    <option value="premium product commercial, studio lighting, clean composition, elegant camera movement">Product showcase</option>
+                  </select>
+                </label>
+                <label for="gen-video-ratio">Video format
+                  <select id="gen-video-ratio"><option value="16:9">Landscape · 16:9</option><option value="9:16">Portrait · 9:16</option><option value="1:1">Square · 1:1</option></select>
+                </label>
+                <label for="gen-video-lang">Narration language
+                  <select id="gen-video-lang"><option value="en">English</option><option value="hi">Hindi</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option></select>
+                </label>
+                <label for="gen-avatar-style">Character preference
+                  <select id="gen-avatar-style" onchange="document.getElementById('avatar-lipsync-row').hidden=this.value==='none'">
+                    <option value="none">Follow my prompt</option><option value="realistic">Realistic presenter</option><option value="cartoon">3D animated avatar</option>
+                  </select>
+                </label>
+                <label for="gen-video-duration">Target duration <output id="gen-dur-val" for="gen-video-duration">20s</output>
+                  <input id="gen-video-duration" type="range" min="10" max="60" step="5" value="20" oninput="document.getElementById('gen-dur-val').textContent=this.value+'s'">
+                </label>
+                <label for="gen-narration-timing">Narration timing
+                  <select id="gen-narration-timing" aria-describedby="narration-timing-help"><option value="natural" selected>Natural pace · Follow the voice</option><option value="exact">Exact target · May add quiet time</option></select>
+                </label>
+              </div>
+              <div class="generation-toggles">
+                <label><input id="gen-narration" type="checkbox" checked> <span id="gen-voice-status">Add narration</span></label>
+                <label><input id="gen-captions" type="checkbox" checked> Show subtitles</label>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('studio-voice-language').value=document.getElementById('gen-video-lang').value;goTo('settings')">Voice settings &amp; preview</button>
+              </div>
+              <p id="narration-timing-help" class="generation-note">Natural pace uses the target to plan the script, then ends each narrated scene with the speech. Exact target preserves the selected length. New neural narration includes speech-timed captions in both modes.</p>
+              <div id="avatar-lipsync-row" class="generation-note" hidden><label><input type="checkbox" id="gen-lipsync" disabled> Lip-sync unavailable in this mode</label><span>For a talking presenter, choose Avatar explainer → MuseTalk · Talking portrait.</span></div>
+              <p id="gen-mode-help" class="generation-note">One motion opening, then animated images and narration. Try Draft video preview first. Motion still depends on Colab GPU speed.</p>
+            </div>
+          </div>
+          <footer class="generation-footer">
+            <p id="gen-draft-description">720p draft video · Images + selected voice/subtitles.</p>
+            <button id="gen-preview-btn" type="button" class="btn btn-secondary" onclick="previewGeneration()" title="Creates a 720p draft MP4 from images with pan/zoom and your selected narration/subtitles. No AI motion is generated.">Draft video preview</button>
+            <button id="gen-video-btn" type="button" onclick="triggerFullVideoGeneration()">Generate video <span aria-hidden="true">→</span></button>
+          </footer>
+        </section>
 
         <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px">
           <div style="flex:1;height:1px;background:var(--bdr)"></div>
@@ -347,7 +410,7 @@
           <div style="flex:1;height:1px;background:var(--bdr)"></div>
         </div>
 
-        <div style="font-weight:700;font-size:14px;margin-bottom:16px;color:var(--t1)">2. Generate from Footage (Video-to-Video)</div>
+        <div style="font-weight:700;font-size:14px;margin-bottom:16px;color:var(--t1)">Edit your own video</div>
         <!-- Drop Zone -->
         <div class="drop-zone" id="drop-zone" ondragover="dzDragOver(event)" ondragleave="dzDragLeave(event)" ondrop="dzDrop(event)" onclick="dzClick()">
           <div id="dz-idle">
@@ -356,8 +419,8 @@
             </div>
             <div class="h4" style="margin-bottom:8px">Drop your video file here</div>
             <p style="font-size:13px;color:var(--t2);margin-bottom:18px">or click to browse from your computer</p>
-            <div class="flex gap-8 justify-center"><span class="tag tag-p">MP4</span><span class="tag tag-p">MOV</span><span class="tag tag-p">AVI</span><span class="tag tag-p">WebM</span><span class="tag tag-p">MKV</span></div>
-            <p style="font-size:12px;color:var(--t4);margin-top:14px">Maximum file size: 10 GB</p>
+            <div class="flex gap-8 justify-center"><span class="tag tag-p">MP4</span><span class="tag tag-p">MOV</span><span class="tag tag-p">WebM</span><span class="tag tag-p">MKV</span></div>
+            <p style="font-size:12px;color:var(--t4);margin-top:14px">Maximum file size: 500 MiB</p>
           </div>
           <div id="dz-uploading" style="display:none">
             <div style="font-weight:700;font-size:16px;margin-bottom:16px" id="upload-filename">video_file.mp4</div>
@@ -366,49 +429,22 @@
             <div style="font-size:12px;color:var(--t4);margin-top:8px" id="upload-speed">–</div>
           </div>
         </div>
-        <input type="file" id="file-input" accept="video/*,audio/*" style="display:none" onchange="fileSelected(event)"/>
+        <input type="file" id="file-input" accept=".mp4,.mov,.mkv,.webm" style="display:none" onchange="fileSelected(event)"/>
 
-        <!-- AI Options -->
-        <div class="card" style="padding:26px;margin-top:24px">
-          <div class="h4" style="margin-bottom:20px">AI Processing Configuration</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px">
-            <div>
-              <div style="font-size:11px;font-weight:700;color:var(--t3);margin-bottom:8px">Speech Recognition Model</div>
-              <div class="pill-group" id="pill-speech"><div class="pill-opt active" onclick="pickPill(this)">Whisper V3</div><div class="pill-opt" onclick="pickPill(this)">V3 Large</div><div class="pill-opt" onclick="pickPill(this)">V2 Fast</div></div>
-            </div>
-            <div>
-              <div style="font-size:11px;font-weight:700;color:var(--t3);margin-bottom:8px">Language Model (LLM)</div>
-              <div class="pill-group" id="pill-llm"><div class="pill-opt active" onclick="pickPill(this)">Llama-3 8B</div><div class="pill-opt" onclick="pickPill(this)">Mistral 7B</div><div class="pill-opt" onclick="pickPill(this)">Gemma 7B</div></div>
-            </div>
-            <div>
-              <div style="font-size:11px;font-weight:700;color:var(--t3);margin-bottom:8px">Image Source</div>
-              <div class="pill-group" id="pill-img"><div class="pill-opt active" onclick="pickPill(this)">SDXL Turbo</div><div class="pill-opt" onclick="pickPill(this)">Flux.1 Local</div><div class="pill-opt" onclick="pickPill(this)">Custom Local</div></div>
-            </div>
-            <div>
-              <div style="font-size:11px;font-weight:700;color:var(--t3);margin-bottom:8px">Output Resolution</div>
-              <div class="pill-group" id="pill-res"><div class="pill-opt" onclick="pickPill(this)">720p</div><div class="pill-opt" onclick="pickPill(this)">1080p</div><div class="pill-opt active" onclick="pickPill(this)">4K</div></div>
-            </div>
-            <div>
-              <div style="font-size:11px;font-weight:700;color:var(--t3);margin-bottom:8px">Subtitle Style</div>
-              <div class="pill-group" id="pill-sub"><div class="pill-opt active" onclick="pickPill(this)">Cinematic</div><div class="pill-opt" onclick="pickPill(this)">Bold</div><div class="pill-opt" onclick="pickPill(this)">Minimal</div></div>
-            </div>
-            <div>
-              <div style="font-size:11px;font-weight:700;color:var(--t3);margin-bottom:8px">Transition Style</div>
-              <div class="pill-group" id="pill-trans"><div class="pill-opt active" onclick="pickPill(this)">AI Choice</div><div class="pill-opt" onclick="pickPill(this)">Fade</div><div class="pill-opt" onclick="pickPill(this)">Zoom</div></div>
-            </div>
+        <section class="card upload-processing-options" style="padding:20px;margin-top:20px" aria-labelledby="upload-options-title">
+          <h3 id="upload-options-title" class="h4" style="margin-bottom:12px">Import options</h3>
+          <div class="flex items-center gap-16" style="flex-wrap:wrap">
+            <label for="upload-language">Speech language
+              <select id="upload-language" class="btn btn-secondary"><option value="en">English</option><option value="hi">Hindi</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option></select>
+            </label>
+            <label class="flex items-center gap-8"><input type="checkbox" id="upload-transcribe"> Transcribe speech into captions</label>
           </div>
-          <div class="flex gap-24" style="flex-wrap:wrap">
-            <label class="flex items-center gap-10" style="cursor:pointer;font-size:13px"><div class="toggle on" id="tog-broll" onclick="this.classList.toggle('on')"></div>Auto B-Roll</label>
-            <label class="flex items-center gap-10" style="cursor:pointer;font-size:13px"><div class="toggle on" id="tog-music" onclick="this.classList.toggle('on')"></div>Background Music</label>
-            <label class="flex items-center gap-10" style="cursor:pointer;font-size:13px"><div class="toggle on" id="tog-subs" onclick="this.classList.toggle('on')"></div>Auto Subtitles</label>
-            <label class="flex items-center gap-10" style="cursor:pointer;font-size:13px"><div class="toggle" id="tog-intro" onclick="this.classList.toggle('on')"></div>AI Intro/Outro</label>
-            <label class="flex items-center gap-10" style="cursor:pointer;font-size:13px"><div class="toggle on" id="tog-qa" onclick="this.classList.toggle('on')"></div>Quality Check</label>
-          </div>
-        </div>
+          <p style="color:var(--t2);font-size:12px;margin-top:12px">Editing and MP4 export work locally. Optional transcription uses Whisper and may download its model on first use. Add your music and adjust color in the editor.</p>
+        </section>
 
         <button class="btn btn-primary w-full" style="margin-top:18px;padding:15px;font-size:15px;border-radius:14px" onclick="startProcessingFlow()">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z"/></svg>
-          Start AI Processing
+          Import video
         </button>
       </div>
     </div>
@@ -438,8 +474,15 @@
         <div id="proc-done" style="display:none;margin-top:28px">
           <div style="font-size:56px;margin-bottom:18px">🎬</div>
           <div class="h3" style="margin-bottom:10px">Your Video is Ready!</div>
-          <p id="proc-done-stats" style="color:var(--t2);margin-bottom:26px;font-size:14px">AI made <strong style="color:var(--t1)">342 visual decisions</strong> in just 48 seconds.</p>
-          <button class="btn btn-primary" style="padding:13px 40px;font-size:15px" onclick="goTo('editor')">Open in Editor →</button>
+          <p id="proc-done-stats" style="color:var(--t2);margin-bottom:26px;font-size:14px">Your result is ready to review. Check the timeline before exporting.</p>
+          <!-- Download button injected here by pipeline.js -->
+          <div class="flex gap-12" style="justify-content:center;flex-wrap:wrap;margin-bottom:16px">
+            <button class="btn btn-primary" style="padding:13px 36px;font-size:15px" onclick="goTo('editor')">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+              Open AI Editor
+            </button>
+          </div>
+          <div id="proc-done-download-slot" style="display:flex;justify-content:center"></div>
         </div>
       </div>
     </div>
@@ -455,19 +498,34 @@
     <div class="flex items-center gap-16">
       <button class="btn-icon" onclick="goTo('dashboard')"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 12H5"/><path d="M12 5l-7 7 7 7"/></svg></button>
       <div>
-        <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px">AI Product Launch 2025 <span class="tag tag-g" style="font-size:8px">READY</span></div>
-        <div style="font-size:10px;color:var(--purple);font-weight:700">AUTO-EDITED · 342 AI DECISIONS · 4K 60fps</div>
+        <div id="ed-project-title" style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px">No project open</div>
+        <div id="ed-project-sub" style="font-size:10px;color:var(--purple);font-weight:700">Import a video or open a saved project to begin.</div>
       </div>
     </div>
     <div class="flex items-center gap-10">
+      <!-- Aspect Ratio Switcher -->
+      <div style="display:flex;gap:3px;background:var(--bg2);border:1px solid var(--bdr);border-radius:9px;padding:3px">
+        <button id="ar-btn-16-9" title="16:9 YouTube" onclick="switchAspectRatio('16:9',this)"
+          style="padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;transition:all .18s;color:#fff;background:var(--purple);border:none">
+          16:9
+        </button>
+        <button id="ar-btn-9-16" title="9:16 Reels" onclick="switchAspectRatio('9:16',this)"
+          style="padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;transition:all .18s;color:var(--t4);background:transparent;border:none">
+          9:16
+        </button>
+        <button id="ar-btn-1-1" title="1:1 Square" onclick="switchAspectRatio('1:1',this)"
+          style="padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;transition:all .18s;color:var(--t4);background:transparent;border:none">
+          1:1
+        </button>
+      </div>
       <span id="ed-timecode" class="mono" style="font-size:12px;color:var(--cyan);padding:5px 10px;background:var(--bg2);border-radius:7px;border:1px solid var(--bdr)">00:00:00</span>
-      <button class="btn-icon" title="Undo" onclick="toast('Undo')"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg></button>
-      <button class="btn-icon" title="Redo" onclick="toast('Redo')"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg></button>
-      <button class="btn-icon" onclick="toast('Sharing link copied!')"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
+      <button class="btn-icon" title="Undo" onclick="window.AgentPipeline && window.AgentPipeline.undo()"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg></button>
+      <button class="btn-icon" title="Redo" onclick="window.AgentPipeline && window.AgentPipeline.redo()"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg></button>
+      <button class="btn-icon" onclick="shareVideo()"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
       <button class="btn btn-secondary btn-sm" onclick="goTo('analytics')">Analytics</button>
       <button class="btn btn-primary btn-sm" onclick="openModal('export-modal')">
         <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Export 4K MP4
+        Export
       </button>
     </div>
   </div>
@@ -489,11 +547,20 @@
     <!-- CENTER: Preview + Controls -->
     <div class="panel-center">
       <div class="preview-wrap">
-        <div class="preview-screen" id="preview-screen">
+        <div class="preview-screen" id="preview-screen" style="aspect-ratio:16/9">
           <!-- Presenter bg -->
-          <div class="absolute inset-0" style="background:radial-gradient(ellipse at 50% 75%,#1c1c1c,#050505);display:flex;align-items:center;justify-content:center">
+          <div class="absolute inset-0" id="preview-bg-fallback" style="background:radial-gradient(ellipse at 50% 75%,#1c1c1c,#050505);display:flex;align-items:center;justify-content:center">
             <div style="width:190px;height:190px;border-radius:50%;background:linear-gradient(145deg,#252525,#101010);box-shadow:0 0 80px rgba(0,0,0,.8)"></div>
           </div>
+          <!-- Real Video Player -->
+          <video id="real-preview-video" onclick="togglePlay()" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:none;z-index:2" playsinline></video>
+          
+          <!-- Loading Overlay -->
+          <div id="render-loading-overlay" style="position:absolute;inset:0;background:rgba(0,0,0,0.8);z-index:20;display:none;flex-direction:column;align-items:center;justify-content:center;color:white;">
+            <div style="width:40px;height:40px;border-radius:50%;border:3px solid rgba(139,92,246,.3);border-top-color:var(--purple);animation:spin 1s linear infinite;margin-bottom:12px"></div>
+            <div style="font-size:12px;font-weight:600">AI is applying edits...</div>
+          </div>
+          
           <!-- Scan line indicator -->
           <div id="scan-line" class="absolute pointer-none" style="left:0;right:0;height:1px;background:rgba(6,182,212,.2);display:none;top:0;animation:none"></div>
           <!-- PIP overlay -->
@@ -501,7 +568,7 @@
           <!-- Subtitle bar -->
           <div class="subtitle-bar"><div class="subtitle-text" id="subtitle-display"></div></div>
           <!-- Play overlay -->
-          <div class="play-overlay" id="play-overlay" onclick="togglePlay()">
+          <div class="play-overlay" id="play-overlay" onclick="togglePlay()" style="z-index:10">
             <div class="play-btn-circle" id="play-btn-inner">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
             </div>
@@ -524,10 +591,12 @@
           <div class="progress-thumb" id="progress-thumb" style="left:0%"></div>
         </div>
         <span class="mono" style="font-size:10px;color:var(--t4);flex-shrink:0">0:30</span>
-        <!-- Volume -->
-        <svg width="14" height="14" fill="none" stroke="var(--t4)" stroke-width="2" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-        <input type="range" class="range volume-slider" min="0" max="100" value="80" style="width:64px" oninput="volChange(this.value)">
+        <!-- Preview monitoring never changes exported clip audio. -->
+        <button id="preview-audio-toggle" class="btn-icon" type="button" onclick="togglePreviewMute()" aria-label="Mute preview only" aria-pressed="false" title="Mute preview only (does not change export)">🔊</button>
+        <input type="range" class="range volume-slider" aria-label="Preview volume" title="Preview volume only; exported audio is unchanged" min="0" max="100" value="80" style="width:64px" oninput="volChange(this.value)">
+        <span id="preview-volume-value" class="mono" style="font-size:10px;min-width:32px">80%</span>
         <!-- Speed -->
+        <span class="editor-help" style="font-size:10px;margin:0">Preview speed</span>
         <div class="pill-group" style="font-size:10px" id="speed-pills">
           <div class="pill-opt" onclick="setSpeed(.5,this)">0.5x</div>
           <div class="pill-opt active" onclick="setSpeed(1,this)">1x</div>
@@ -537,9 +606,16 @@
       </div>
       <!-- Natural Language Edit Agent Console -->
       <div class="nl-edit-bar">
-        <span class="tag tag-y" style="font-size:8px;flex-shrink:0">NL EDIT AGENT</span>
-        <input class="nl-edit-input" id="ed-nl-input" placeholder="Type prompt (e.g. 'Avatar background blue karo', 'Add Hindi subtitles', 'Scene 2 ko podcast layout me badlo')..." onkeypress="if(event.key==='Enter') handleNLCommand('ed-nl-input')">
-        <button class="btn btn-primary btn-xs" onclick="handleNLCommand('ed-nl-input')">Apply Edit</button>
+        <span class="tag tag-y" style="font-size:8px;flex-shrink:0">AI EDIT ASSISTANT</span>
+        <select id="edit-agent-scope" aria-label="Edit scope"><option value="all">Whole video</option><option value="selected">Selected clip</option></select>
+        <input class="nl-edit-input" id="ed-nl-input" aria-label="Describe video edits" maxlength="3000" placeholder="Portrait, volume 50%, brighten" onkeypress="if(event.key==='Enter') handleNLCommand('ed-nl-input')">
+        <button id="edit-agent-apply" class="btn btn-primary btn-xs" onclick="handleNLCommand('ed-nl-input')">Apply edits</button>
+        <button id="edit-agent-cancel" class="btn btn-secondary btn-xs" hidden>Cancel</button>
+      </div>
+      <div class="edit-agent-console">
+        <div class="edit-agent-examples" id="edit-agent-examples"></div>
+        <div id="edit-agent-status" role="status" aria-live="polite">Describe cuts, speed, framing, color, audio or caption text. Free Colab/Ollama handles flexible wording.</div>
+        <details><summary>What can I ask?</summary>Try “keep 2 to 8 seconds”, “clip 2 speed 1.5”, “add caption &quot;Welcome&quot;” or “make the video natural and clean”. Frame, color and audio noise reduction settings affect the whole video. Background/face replacement, lip sync and automatic speech translation are not available in this edit box. Review the preview, then Export for the final MP4.</details>
       </div>
     </div>
 
@@ -553,6 +629,35 @@
         </div>
       </div>
       <div class="scroll-area" style="padding:8px" id="decision-list"></div>
+    </div>
+  </div>
+
+  <!-- VIDEO EDITING TOOLBAR -->
+  <div id="video-edit-toolbar" style="display:none;background:rgba(6,6,8,.98);border-top:1px solid var(--bdr);padding:7px 14px;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap">
+    <div style="display:flex;gap:4px;padding-right:10px;border-right:1px solid var(--bdr)">
+      <button id="tool-select" class="edit-tool-btn active" onclick="setEditTool('select',this)" title="Select (V)"><svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z"/></svg> Select</button>
+      <button id="tool-split" class="edit-tool-btn" onclick="splitClipAtPlayhead()" title="Split at playhead (S)"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="3" x2="12" y2="21"/><path d="M3 8h8M3 16h8M16 8h5M16 16h5"/></svg> Split <kbd class="kbd">S</kbd></button>
+      <button class="edit-tool-btn" onclick="cutSelectedClip()" title="Cut selected clip (X)" id="tool-cut"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg> Cut <kbd class="kbd">X</kbd></button>
+    </div>
+    <div style="display:flex;gap:4px;padding-right:10px;border-right:1px solid var(--bdr)">
+      <button class="edit-tool-btn" onclick="trimClipLeft()" title="Trim left edge to playhead ([)"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/><line x1="5" y1="3" x2="5" y2="21"/></svg> Trim In <kbd class="kbd">[</kbd></button>
+      <button class="edit-tool-btn" onclick="trimClipRight()" title="Trim right edge to playhead (])"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/><line x1="19" y1="3" x2="19" y2="21"/></svg> Trim Out <kbd class="kbd">]</kbd></button>
+      <button class="edit-tool-btn" onclick="duplicateSelectedClip()" title="Duplicate clip"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Duplicate</button>
+      <button class="edit-tool-btn" onclick="deleteSelectedClip()" title="Delete selected clip (Del)" style="color:#f87171"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Delete <kbd class="kbd">Del</kbd></button>
+    </div>
+    <div style="display:flex;gap:4px;padding-right:10px;border-right:1px solid var(--bdr)">
+      <button class="edit-tool-btn" onclick="openSpeedDialog()" title="Clip speed"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> Speed</button>
+      <button class="edit-tool-btn" id="tool-mute" onclick="toggleClipMute()" title="Mute/unmute selected clip"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg> Mute</button>
+      <button class="edit-tool-btn" onclick="addAudioTrack()" title="Add audio/music track"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg> + Audio</button>
+    </div>
+    <div style="display:flex;gap:4px;padding-right:10px;border-right:1px solid var(--bdr)">
+      <button class="edit-tool-btn" onclick="undoEdit()" title="Undo (Ctrl+Z)"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg> Undo</button>
+      <button class="edit-tool-btn" onclick="redoEdit()" title="Redo (Ctrl+Y)"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg> Redo</button>
+    </div>
+    <div id="clip-info-bar" style="margin-left:auto;display:flex;align-items:center;gap:14px;font-size:11px;color:var(--t4)">
+      <span>Clip: <strong id="clip-info-time" style="color:var(--cyan);font-family:'JetBrains Mono',monospace">—</strong></span>
+      <span>Dur: <strong id="clip-info-dur" style="color:var(--purple);font-family:'JetBrains Mono',monospace">—</strong></span>
+      <span>Total clips: <strong id="clip-info-count" style="color:var(--t2)">0</strong></span>
     </div>
   </div>
 
@@ -591,7 +696,7 @@
 <!-- ═══════════════════════════════════════════════════════
      VIEW: AI AGENTS (16 AUTONOMOUS AGENTS)
 ═══════════════════════════════════════════════════════ -->
-<div class="view" id="view-agents">
+<div class="view" id="view-agents-legacy">
   <div class="flex flex-1 overflow-hidden">
     <div class="sidebar">
       <div class="logo"><div class="logo-mark"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div><span class="logo-name">SmartEdit<span style="color:var(--purple)">AI</span></span></div>
@@ -615,7 +720,7 @@
       </div>
       
       <!-- Agent Grid (Dynamically rendered by agent-engine.js for all 16 agents) -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:20px" id="agent-grid"></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:20px" id="agent-grid-legacy"></div>
 
       <!-- Agent Communication Console & Natural Language Command Input -->
       <div class="glass" style="margin-top:40px;padding:32px">
@@ -631,7 +736,7 @@
           <div class="flex gap-12"><div class="dot dot-c" style="margin-top:6px"></div><div style="font-size:13px"><span style="font-weight:700;color:var(--cyan)">Natural Language Edit Agent:</span> Standing by for plain text user modification prompts.</div></div>
         </div>
         <div class="flex gap-12" style="margin-top:24px">
-          <input class="input flex-1" id="agent-cmd-input" placeholder="Command your 16 agents (e.g. 'Multi-Language Agent, translate script to Hindi', 'Avatar background blue karo')..." onkeypress="if(event.key==='Enter') handleNLCommand('agent-cmd-input')">
+          <input class="input flex-1" id="agent-cmd-input" placeholder="Command your 16 agents (e.g. 'Multi-Language Agent, translate script to Hindi', 'Make avatar background blue')..." onkeypress="if(event.key==='Enter') handleNLCommand('agent-cmd-input')">
           <button class="btn btn-primary" onclick="handleNLCommand('agent-cmd-input')">Execute Command</button>
         </div>
       </div>
@@ -685,76 +790,8 @@
       <div class="nav-item" onclick="goTo('settings')"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>Settings</div>
     </div>
     <div class="scroll-area flex-1" style="background:#070707;padding:40px">
-      <div class="flex justify-between items-center" style="margin-bottom:32px">
-        <h2 class="h3">AI Performance Analytics</h2>
-        <div class="pill-group" id="analytics-range">
-          <div class="pill-opt" onclick="pickPill(this)">7d</div>
-          <div class="pill-opt active" onclick="pickPill(this)">30d</div>
-          <div class="pill-opt" onclick="pickPill(this)">90d</div>
-        </div>
-      </div>
-      <!-- KPIs -->
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px">
-        <div class="stat-card"><div class="stat-label">Transcription Accuracy</div><div class="stat-kpi grad-text">99.4%</div><div class="bar-h" style="margin-top:10px"><div class="bar-h-fill" style="width:99%;background:var(--grad)"></div></div></div>
-        <div class="stat-card"><div class="stat-label">Avg. Process Time</div><div class="stat-kpi" style="color:var(--cyan)">48s</div><div class="stat-sub" style="color:var(--green);margin-top:6px">↓ 18% vs last month</div></div>
-        <div class="stat-card"><div class="stat-label">AI Visual Decisions</div><div class="stat-kpi" style="color:var(--purple)">4,218</div><div class="stat-sub" style="margin-top:6px">visual placements made</div></div>
-        <div class="stat-card"><div class="stat-label">Images Retrieved</div><div class="stat-kpi" style="color:var(--yellow)">1,847</div><div class="stat-sub" style="margin-top:6px">across 4 API sources</div></div>
-      </div>
-      <!-- Charts Row -->
-      <div style="display:grid;grid-template-columns:2fr 1fr;gap:18px;margin-bottom:18px">
-        <div class="stat-card">
-          <div class="h4" style="margin-bottom:20px">AI Confidence Score — Weekly</div>
-          <div id="weekly-chart" class="chart-bar-wrap" style="height:150px;align-items:flex-end"></div>
-          <div class="flex justify-between" style="margin-top:8px">
-            <span style="font-size:9px;color:var(--t4)">MON</span><span style="font-size:9px;color:var(--t4)">TUE</span><span style="font-size:9px;color:var(--t4)">WED</span><span style="font-size:9px;color:var(--t4)">THU</span><span style="font-size:9px;color:var(--t4)">FRI</span><span style="font-size:9px;color:var(--t4)">SAT</span><span style="font-size:9px;color:var(--t4)">SUN</span>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="h4" style="margin-bottom:20px">Visual Source Mix</div>
-          <div class="flex flex-col gap-14">
-            <div><div class="flex justify-between" style="margin-bottom:5px;font-size:12px"><span style="color:var(--t2)">Unsplash</span><span style="color:var(--t4)">42%</span></div><div class="bar-h"><div class="bar-h-fill" style="width:42%;background:var(--purple)"></div></div></div>
-            <div><div class="flex justify-between" style="margin-bottom:5px;font-size:12px"><span style="color:var(--t2)">Pexels</span><span style="color:var(--t4)">28%</span></div><div class="bar-h"><div class="bar-h-fill" style="width:28%;background:var(--blue)"></div></div></div>
-            <div><div class="flex justify-between" style="margin-bottom:5px;font-size:12px"><span style="color:var(--t2)">DALL·E 3</span><span style="color:var(--t4)">18%</span></div><div class="bar-h"><div class="bar-h-fill" style="width:18%;background:var(--cyan)"></div></div></div>
-            <div><div class="flex justify-between" style="margin-bottom:5px;font-size:12px"><span style="color:var(--t2)">Pixabay</span><span style="color:var(--t4)">12%</span></div><div class="bar-h"><div class="bar-h-fill" style="width:12%;background:var(--green)"></div></div></div>
-          </div>
-        </div>
-      </div>
-      <!-- Detail stats -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
-        <div class="stat-card">
-          <div class="h4" style="margin-bottom:16px">Pipeline Timing</div>
-          <div class="flex flex-col gap-10">
-            <div class="flex justify-between" style="font-size:12px"><span class="t2">Audio Extraction</span><span class="mono" style="color:var(--cyan)">1.2s</span></div>
-            <div class="flex justify-between" style="font-size:12px"><span class="t2">Whisper V3 STT</span><span class="mono" style="color:var(--cyan)">8.4s</span></div>
-            <div class="flex justify-between" style="font-size:12px"><span class="t2">LLM Analysis</span><span class="mono" style="color:var(--cyan)">3.1s</span></div>
-            <div class="flex justify-between" style="font-size:12px"><span class="t2">Image Retrieval</span><span class="mono" style="color:var(--cyan)">12.3s</span></div>
-            <div class="flex justify-between" style="font-size:12px"><span class="t2">Timeline Build</span><span class="mono" style="color:var(--cyan)">0.9s</span></div>
-            <div class="flex justify-between" style="font-size:12px"><span class="t2">FFmpeg Render</span><span class="mono" style="color:var(--cyan)">22.1s</span></div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="h4" style="margin-bottom:16px">Model Performance</div>
-          <div class="flex flex-col gap-10">
-            <div class="flex justify-between" style="font-size:12px"><span class="t2">Whisper WER</span><span style="color:var(--green)">0.6%</span></div>
-            <div class="flex justify-between" style="font-size:12px"><span class="t2">LLM Relevance</span><span style="color:var(--green)">94.2%</span></div>
-            <div class="flex justify-between" style="font-size:12px"><span class="t2">Visual Match Score</span><span style="color:var(--green)">91.8%</span></div>
-            <div class="flex justify-between" style="font-size:12px"><span class="t2">Subtitle Accuracy</span><span style="color:var(--green)">99.1%</span></div>
-            <div class="flex justify-between" style="font-size:12px"><span class="t2">Sync Offset</span><span style="color:var(--green)">&lt; 1 frame</span></div>
-            <div class="flex justify-between" style="font-size:12px"><span class="t2">QA Pass Rate</span><span style="color:var(--green)">98.7%</span></div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="h4" style="margin-bottom:16px">Export Stats</div>
-          <div class="flex flex-col gap-10">
-            <div class="flex justify-between" style="font-size:12px"><span class="t2">Resolution</span><span class="mono" style="color:var(--purple)">3840×2160</span></div>
-            <div class="flex justify-between" style="font-size:12px"><span class="t2">Frame Rate</span><span class="mono" style="color:var(--purple)">60 fps</span></div>
-            <div class="flex justify-between" style="font-size:12px"><span class="t2">Codec</span><span class="mono" style="color:var(--purple)">H.265 HEVC</span></div>
-            <div class="flex justify-between" style="font-size:12px"><span class="t2">Bitrate</span><span class="mono" style="color:var(--purple)">45 Mbps</span></div>
-            <div class="flex justify-between" style="font-size:12px"><span class="t2">File Size</span><span class="mono" style="color:var(--purple)">214 MB</span></div>
-            <div class="flex justify-between" style="font-size:12px"><span class="t2">Color Space</span><span class="mono" style="color:var(--purple)">BT.2020 HDR</span></div>
-          </div>
-        </div>
-      </div>
+      <h2 class="h3">Production activity</h2>
+      <p class="setting-desc">Open this page to load local project and job records.</p>
     </div>
   </div>
 </div>
@@ -801,9 +838,9 @@
         <!-- Rendering -->
         <div class="setting-group">
           <div class="setting-group-header" style="color:var(--green)">🎬 Rendering & Export</div>
-          <div class="setting-row"><div><div class="setting-label">Output Resolution</div></div><div class="pill-group"><div class="pill-opt" onclick="pickPill(this)">720p</div><div class="pill-opt" onclick="pickPill(this)">1080p</div><div class="pill-opt active" onclick="pickPill(this)">4K UHD</div></div></div>
+          <div class="setting-row"><div><div class="setting-label">Output Resolution</div></div><div class="pill-group"><div class="pill-opt" onclick="pickPill(this)">720p</div><div class="pill-opt" onclick="pickPill(this)">1080p</div><div class="pill-opt active" onclick="pickPill(this)">1080p</div></div></div>
           <div class="setting-row"><div><div class="setting-label">Video Codec</div></div><div class="pill-group"><div class="pill-opt" onclick="pickPill(this)">H.264</div><div class="pill-opt active" onclick="pickPill(this)">H.265</div><div class="pill-opt" onclick="pickPill(this)">AV1</div></div></div>
-          <div class="setting-row"><div><div class="setting-label">Frame Rate</div></div><div class="pill-group"><div class="pill-opt" onclick="pickPill(this)">24fps</div><div class="pill-opt" onclick="pickPill(this)">30fps</div><div class="pill-opt active" onclick="pickPill(this)">60fps</div></div></div>
+          <div class="setting-row"><div><div class="setting-label">Frame Rate</div></div><div class="pill-group"><div class="pill-opt" onclick="pickPill(this)">24fps</div><div class="pill-opt" onclick="pickPill(this)">30fps</div><div class="pill-opt active" onclick="pickPill(this)">30fps</div></div></div>
           <div class="setting-row"><div><div class="setting-label">GPU Acceleration</div><div class="setting-desc">NVIDIA CUDA / Apple M-series</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
           <div class="setting-row"><div><div class="setting-label">HDR Output</div><div class="setting-desc">BT.2020 color space</div></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
         </div>
@@ -831,7 +868,7 @@
           <div class="dot dot-g" id="agent-backend-dot" title="Backend status" style="flex-shrink:0"></div>
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--green)">BACKEND ONLINE</div>
-            <div style="font-size:9px;color:var(--t4)">28 agents ready</div>
+            <div style="font-size:9px;color:var(--t4)">28 tools · check capabilities</div>
           </div>
         </div>
       </div>
@@ -872,9 +909,9 @@
       <!-- Header -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:14px">
         <div>
-          <div class="tag tag-p" style="margin-bottom:10px;display:inline-block">28 AI AGENTS — FULLY OPERATIONAL</div>
+          <div class="tag tag-p" style="margin-bottom:10px;display:inline-block">PRODUCTION AGENTS & SPECIALIST TOOLS</div>
           <h2 class="h2" style="margin-bottom:6px">AI Agent Control Center</h2>
-          <p style="font-size:13px;color:var(--t2)">All agents are wired to the local FastAPI backend. Click <strong>▶ Run Task</strong> on any card to trigger it live.</p>
+          <p style="font-size:13px;color:var(--t2)">Integrated actions modify the project; specialist briefs provide recommendations. AI tools require a connected model. Lip-sync is unavailable.</p>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-secondary btn-sm" onclick="AgentPipeline && AgentPipeline.logAgentAction('system','System','Refreshing agent status…','b');pollAgentStatus()">⟳ Refresh Status</button>
@@ -959,5 +996,187 @@
 
 <!-- Frontend App Logic -->
 <script src="frontend/app.js"></script>
+
+<!-- ═══════════════════════════════════════════
+     SmartEdit Backend Config + Colab Connect
+     Inline bootstrap — runs after all scripts
+════════════════════════════════════════════ -->
+<script>
+// ── Global backend config (used by agent-pipeline-core.js) ──
+window.SmartEditBackend = Object.assign(window.SmartEditBackend || {}, { apiBase: 'http://127.0.0.1:8000' });
+
+// ── connectColab — Save ngrok URL to backend at runtime ──────
+window.connectColab = async function() {
+  var url = (document.getElementById('colab-url-input') || {}).value || '';
+  url = url.trim().replace(/\/+$/, '');
+  if (!url || !url.startsWith('http')) {
+    showColabMsg('❌ Valid HTTPS URL dalo — jaise https://xxxx.ngrok-free.dev', 'red');
+    return;
+  }
+  var btn = document.getElementById('colab-connect-btn');
+  if (btn) { btn.textContent = '⏳ Testing…'; btn.disabled = true; }
+  showColabMsg('', '');
+  try {
+    var resp = await fetch('http://127.0.0.1:8000/api/v1/update-ollama-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: url, model: '' })
+    });
+    var data = await resp.json();
+    if (data.status === 'connected') {
+      setColabOnline(data.model, data.available_models);
+      showColabMsg('✅ Connected! Model: ' + data.model + ' | Models: ' + (data.available_models || []).join(', '), 'green');
+      if (window.AgentPipeline) {
+        window.AgentPipeline.logAgentAction('backend', 'Colab Connect', 'Ollama connected: ' + url + ' | Model: ' + data.model, 'g');
+      }
+      if (typeof toast === 'function') toast('✅ Colab connected! Model: ' + data.model);
+    } else {
+      setColabOffline();
+      showColabMsg('⚠️ ' + (data.message || 'Connection failed'), 'orange');
+    }
+  } catch(e) {
+    setColabOffline();
+    showColabMsg('❌ Backend is offline — run "Launch SmartEdit.bat" first', 'red');
+  }
+  if (btn) { btn.textContent = '✅ Connect & Test'; btn.disabled = false; }
+};
+
+// ── Check current Ollama config from backend ──────────────────
+window.checkColabStatus = async function() {
+  try {
+    var resp = await fetch('http://127.0.0.1:8000/api/v1/ollama-config');
+    if (!resp.ok) throw new Error();
+    var data = await resp.json();
+    // Check ollama-health
+    var healthResp = await fetch('http://127.0.0.1:8000/api/v1/ollama-health');
+    var health = await healthResp.json();
+    if (health.status === 'online') {
+      setColabOnline(data.model, health.available_models);
+      var inp = document.getElementById('colab-url-input');
+      if (inp && !inp.value) inp.value = data.ollama_url || '';
+    } else {
+      setColabOffline();
+    }
+  } catch(e) {
+    setColabOffline();
+  }
+};
+
+function setColabOnline(model, models) {
+  var dot = document.getElementById('colab-status-dot');
+  var txt = document.getElementById('colab-status-text');
+  var badge = document.getElementById('colab-model-badge');
+  if (dot) { dot.style.background = '#10B981'; dot.title = 'Online'; }
+  if (txt) { txt.textContent = 'ONLINE'; txt.style.color = 'var(--green)'; }
+  if (badge) { badge.style.display = 'block'; badge.textContent = model || 'qwen3:8b'; }
+  // Sync to AgentPipeline state
+  if (window.AgentPipeline) window.AgentPipeline.state.ollamaOnline = true;
+}
+
+function setColabOffline() {
+  var dot = document.getElementById('colab-status-dot');
+  var txt = document.getElementById('colab-status-text');
+  var badge = document.getElementById('colab-model-badge');
+  if (dot) { dot.style.background = '#EF4444'; dot.title = 'Offline'; }
+  if (txt) { txt.textContent = 'OFFLINE'; txt.style.color = 'var(--red,#EF4444)'; }
+  if (badge) badge.style.display = 'none';
+  if (window.AgentPipeline) window.AgentPipeline.state.ollamaOnline = false;
+}
+
+function showColabMsg(msg, color) {
+  var el = document.getElementById('colab-connect-msg');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+  var colorMap = { red: '#EF4444', green: '#10B981', orange: '#F59E0B', '': 'var(--t4)' };
+  el.style.color = colorMap[color] || 'var(--t4)';
+}
+
+// ── Trigger Full 28-Agent Video Generation ────────────────────
+window.triggerFullVideoGeneration = async function() {
+  var promptEl = document.getElementById('gen-video-prompt');
+  var durationEl = document.getElementById('gen-video-duration');
+  var langEl = document.getElementById('gen-video-lang');
+  var ratioEl = document.getElementById('gen-video-ratio');
+  var avatarEl = document.getElementById('gen-avatar-style');
+  var lipsyncEl = document.getElementById('gen-lipsync');
+
+  var prompt = (promptEl && promptEl.value || '').trim();
+  var duration = parseInt((durationEl && durationEl.value) || '60', 10);
+  var lang = (langEl && langEl.value) || 'en';
+  var ratio = (ratioEl && ratioEl.value) || '16:9';
+  var avatarStyle = (avatarEl && avatarEl.value) || 'none';
+  var enableLipsync = !!(lipsyncEl && lipsyncEl.checked);
+
+  if (!prompt || prompt.length < 5) {
+    if (typeof toast === 'function') toast('Please write a prompt first!', 'error');
+    if (promptEl) { promptEl.style.borderColor = '#EF4444'; setTimeout(function(){ promptEl.style.borderColor='rgba(139,92,246,.3)'; }, 2000); }
+    return;
+  }
+
+  // Detect if it's a short idea/prompt instead of a full script
+  var isShortPrompt = prompt.split(' ').length < 25 && !prompt.includes('[Scene');
+  if (isShortPrompt) {
+    if (typeof toast === 'function') toast('Short idea detected. Auto-generating full script...');
+    var success = await generateScriptWithAI(true);
+    if (!success) return; // Stop if script generation failed
+    prompt = promptEl.value.trim(); // Get the newly generated full script
+  }
+
+  // Set language + ratio + avatar in AgentPipeline state
+  if (window.AgentPipeline) {
+    window.AgentPipeline.state.language = lang;
+    window.AgentPipeline.state.aspectRatio = ratio;
+    window.AgentPipeline.state.avatarStyle = avatarStyle;
+    window.AgentPipeline.state.enableLipsync = enableLipsync;
+    if (typeof goTo === 'function') goTo('editor');
+    window.AgentPipeline.runFullAgentChain(prompt, duration);
+  } else {
+    alert('Agent pipeline failed to load. Please reload the page.');
+  }
+};
+
+// ── Auto-check Colab status on load ──────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(window.checkColabStatus, 1500);
+});
+</script>
+
+<!-- ═══════════════════════════════════════════════════════
+     SPEED DIALOG MODAL
+═══════════════════════════════════════════════════════ -->
+<div id="speed-dialog" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);align-items:center;justify-content:center">
+  <div style="background:var(--bg2);border:1px solid var(--bdr2);border-radius:20px;padding:28px 32px;width:360px;animation:viewIn .25s ease">
+    <div style="font-size:15px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:8px;color:#fff">
+      <svg width="16" height="16" fill="none" stroke="var(--purple)" stroke-width="2.5" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      Exported clip speed · 0.5×–2×
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px" id="speed-preset-grid">
+      <button onclick="applyClipSpeed(0.5,this)" class="speed-preset-btn">0.5x</button>
+      <button onclick="applyClipSpeed(0.75,this)" class="speed-preset-btn">0.75x</button>
+      <button onclick="applyClipSpeed(1,this)" class="speed-preset-btn active-speed">1x</button>
+      <button onclick="applyClipSpeed(1.25,this)" class="speed-preset-btn">1.25x</button>
+      <button onclick="applyClipSpeed(1.5,this)" class="speed-preset-btn">1.5x</button>
+      <button onclick="applyClipSpeed(2,this)" class="speed-preset-btn">2x</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+      <span style="font-size:12px;color:var(--t4)">Custom:</span>
+      <input id="custom-speed-input" type="number" min="0.5" max="2" step="0.05" value="1"
+        style="flex:1;background:var(--bg3);border:1px solid var(--bdr);border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;outline:none;font-family:'JetBrains Mono',monospace"
+        oninput="applyClipSpeed(parseFloat(this.value)||1)"/>
+      <span style="font-size:12px;color:var(--t3)">×</span>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button onclick="closeSpeedDialog()" style="flex:1;padding:10px;background:var(--bg3);border:1px solid var(--bdr);border-radius:10px;color:var(--t2);cursor:pointer;font-size:13px">Cancel</button>
+      <button onclick="confirmSpeedChange()" style="flex:1;padding:10px;background:linear-gradient(135deg,var(--purple),var(--blue));border:none;border-radius:10px;color:#fff;cursor:pointer;font-size:13px;font-weight:700">Apply Speed</button>
+    </div>
+  </div>
+</div>
+
+<script src="frontend/api/studio-integration.js"></script>
+<script src="frontend/api/timeline-editor.js"></script>
+<script src="frontend/api/project-safety.js"></script>
 </body>
 </html>
+
+

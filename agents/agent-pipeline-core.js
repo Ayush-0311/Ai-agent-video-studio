@@ -28,6 +28,10 @@ var AgentPipeline = {
     musicProfile: null,
     brandApplied: false,
     lastNLCommand: '',
+    historyStack: [],
+    redoStack: [],
+    avatarStyle: 'none',
+    enableLipsync: false,
   },
 
   // ── Core Logging ──────────────────────────────────────────
@@ -124,6 +128,89 @@ var AgentPipeline = {
     if (userPrompt) this.state.prompt = userPrompt;
     this.logAgentAction('orchestrator', 'Orchestrator Agent', 'Dispatching prompt: "' + (userPrompt||'').substring(0,40) + '…"', 'c');
   },
+
+  // ── History Management (Undo/Redo) ────────────────────────
+  
+  pushHistoryState: function() {
+    this.state.historyStack.push(JSON.parse(JSON.stringify(this.state.scenes)));
+    this.state.redoStack = []; // clear redo stack on new edit
+  },
+
+  undo: function() {
+    if (this.state.historyStack.length > 0) {
+      this.state.redoStack.push(JSON.parse(JSON.stringify(this.state.scenes)));
+      this.state.scenes = this.state.historyStack.pop();
+      if (typeof window.toast === 'function') toast('Undo successful!');
+      if (window.buildTimeline) window.buildTimeline();
+      this.reRenderVideoAfterEdit();
+    } else {
+      if (typeof window.toast === 'function') toast('Nothing to undo.', 'error');
+    }
+  },
+
+  redo: function() {
+    if (this.state.redoStack.length > 0) {
+      this.state.historyStack.push(JSON.parse(JSON.stringify(this.state.scenes)));
+      this.state.scenes = this.state.redoStack.pop();
+      if (typeof window.toast === 'function') toast('Redo successful!');
+      if (window.buildTimeline) window.buildTimeline();
+      this.reRenderVideoAfterEdit();
+    } else {
+      if (typeof window.toast === 'function') toast('Nothing to redo.', 'error');
+    }
+  },
+
+  // ── Video Re-Rendering ────────────────────────────────────
+
+  reRenderVideoAfterEdit: async function() {
+    var scenes = this.state.scenes;
+    if (!scenes || scenes.length === 0) return;
+    
+    // Show loading overlay
+    var overlay = document.getElementById('render-loading-overlay');
+    if (overlay) overlay.style.display = 'flex';
+    if (typeof window.toast === 'function') toast('Re-rendering video with edits...');
+    
+    var payload = {
+      scenes: scenes,
+      duration_seconds: window.DURATION || 30,
+      language: this.state.language || 'en',
+      aspect_ratio: this.state.aspectRatio || '16:9',
+      image_style: "cinematic photography, professional lighting, ultra detailed, 4K"
+    };
+
+    try {
+      var result = await this.callAgent('compositor', 'Re-Render Agent', '/api/v1/re-render-video', payload);
+      // Wait for it to finish by polling (reuse pipeline.js logic if possible or do simple polling here)
+      var jobId = result.job_id;
+      var apiBase = (window.SmartEditBackend && window.SmartEditBackend.apiBase) || 'http://127.0.0.1:8000';
+      
+      var pollIv = setInterval(async function() {
+        try {
+          var resp = await fetch(apiBase + '/api/v1/job-status/' + jobId);
+          var job = await resp.json();
+          if (job.status === 'completed') {
+            clearInterval(pollIv);
+            if (overlay) overlay.style.display = 'none';
+            if (window.loadRealVideo && job.result && job.result.video_path) {
+              window.loadRealVideo(apiBase + job.result.download_url);
+            }
+          } else if (job.status === 'failed') {
+            clearInterval(pollIv);
+            if (overlay) overlay.style.display = 'none';
+            if (typeof window.toast === 'function') toast('Re-rendering failed: ' + job.error, 'error');
+          }
+        } catch(e) {
+          // ignore transient poll errors
+        }
+      }, 2000);
+      
+    } catch(err) {
+      if (overlay) overlay.style.display = 'none';
+    }
+  },
+
+  // ── Natural Language Edit Agent (see executeNLCommand below in Agent 14 section) ──
 
   // ── Agent 2: Script Agent ─────────────────────────────────
 
@@ -344,6 +431,7 @@ var AgentPipeline = {
     this.state.currentJobId = job.job_id;
     this.state.language = result.language || 'en';
     this.state.transcript = transcript;
+    this.state.rawSegments = segments;
     this.state.wordCount = segments.reduce(function(count, seg) { return count + ((seg.words || []).length); }, 0);
     this.state.scenes = segments.map(function(segment, index) {
       return {
@@ -492,6 +580,7 @@ var AgentPipeline = {
 
   executeNLCommand: async function(commandStr) {
     if (!commandStr || !commandStr.trim()) return;
+    this.pushHistoryState();
     this.state.lastNLCommand = commandStr;
     var payload = {
       command: commandStr,
@@ -514,6 +603,7 @@ var AgentPipeline = {
       if (window.buildTranscript) window.buildTranscript();
       if (window.buildTimeline) window.buildTimeline();
       if (typeof toast === 'function') toast('NL Edit: ' + result.explanation);
+      this.reRenderVideoAfterEdit();
     }
     return result;
   },
@@ -683,7 +773,7 @@ var AgentPipeline = {
       if (previewEl) previewEl.style.cssText += result.css_filter;
       this.logAgentAction('color_grading', 'Color Grading Agent',
         'Grade: ' + result.mood + ' | ' + result.note + ' | CSS filter applied.', 'g');
-      if (typeof toast === 'function') toast('Color grade applied: ' + result.mood + ' (' + result.intensity * 100 + '% intensity)');
+      if (typeof toast === 'function') toast('Color grade applied: ' + result.mood + ' (' + Math.round(intensity * 100) + '% intensity)');
     }
     return result;
   },
@@ -726,7 +816,17 @@ var AgentPipeline = {
     var result = await this.callAgent('script_optimizer', 'Script Optimizer Agent', '/api/v1/optimize-script', payload);
     if (result) {
       // Apply optimized text back to scenes
-      if (result.updated_scenes && result.updated_scenes.length) this.state.scenes = result.updated_scenes;
+      if (result.updated_scenes && result.updated_scenes.length) {
+        this.state.scenes = this.state.scenes.map(function(s) {
+          var updated = result.updated_scenes.find(function(u) { return u.id === s.id; });
+          if (updated) {
+            s.text_original = updated.text_original;
+            s.text = updated.text;
+            s.optimization_changes = updated.optimization_changes;
+          }
+          return s;
+        });
+      }
       this.logAgentAction('script_optimizer', 'Script Optimizer Agent',
         result.scenes_optimized + ' scenes rewritten for ' + result.goal + '. Grade: ' + result.readability_grade + '. Est. improvement: ' + result.estimated_watch_time_improvement, 'g');
       if (typeof toast === 'function') toast('Script optimized for ' + result.goal + '! Watch time +' + result.estimated_watch_time_improvement);
@@ -744,7 +844,19 @@ var AgentPipeline = {
     var result = await this.callAgent('emotion_analysis', 'Emotion Analysis Agent', '/api/v1/analyze-emotion', payload);
     if (result) {
       // Enrich scenes with emotion data
-      if (result.enriched_scenes && result.enriched_scenes.length) this.state.scenes = result.enriched_scenes;
+      if (result.enriched_scenes && result.enriched_scenes.length) {
+        this.state.scenes = this.state.scenes.map(function(s) {
+          var enriched = result.enriched_scenes.find(function(e) { return e.id === s.id; });
+          if (enriched) {
+            s.emotion = enriched.emotion;
+            s.energy = enriched.energy;
+            s.pacing = enriched.pacing;
+            s.color_grade_suggestion = enriched.color_grade_suggestion;
+            s.music_mood = enriched.music_mood;
+          }
+          return s;
+        });
+      }
       this.logAgentAction('emotion_analysis', 'Emotion Analysis Agent',
         'Arc: ' + result.overall_arc + ' | Engagement: ' + result.engagement_prediction + ' | ' + result.emotions_detected + ' scenes analyzed.', 'g');
       if (typeof toast === 'function') toast('Emotion analysis: ' + result.engagement_prediction + ' engagement predicted.');
@@ -766,6 +878,287 @@ var AgentPipeline = {
       if (typeof toast === 'function') toast(result.clips_found + ' viral clips found for ' + result.platform + '!');
     }
     return result;
+  },
+
+  // ── FULL 28-AGENT CHAIN ─────────────────────────────────────
+  // Sequentially runs every agent then starts the full render pipeline.
+  // Call: AgentPipeline.runFullAgentChain('Your prompt here', 60)
+
+  runFullAgentChain: async function(userPrompt, durationSeconds) {
+    var self = this;
+    var prompt = userPrompt || this.state.prompt || '';
+    var duration = durationSeconds || 60;
+
+    if (!prompt || prompt.trim().length < 5) {
+      if (typeof toast === 'function') toast('Please write a prompt first!', 'error');
+      return;
+    }
+
+    // ── UI: show progress modal ──────────────────────────────
+    self._showVideoProgressModal(prompt);
+    self._updateVideoProgress(0, '🤖 Video production is starting…');
+
+    try {
+      // ── PHASE 1: Script Agent ────────────────────────────
+      self._updateVideoProgress(4, '📝 Script Agent: Generating script using Qwen3…');
+      self.logAgentAction('script', 'Script Agent', 'Writing script using Qwen3:8b: "' + prompt.substring(0, 40) + '…"', 'c');
+      var scriptResult;
+      try {
+        scriptResult = await self.callAgent('script', 'Script Agent', '/api/v1/generate-script', {
+          prompt: prompt, duration_seconds: duration, language: self.state.language || 'en', aspect_ratio: self.state.aspectRatio || '16:9'
+        });
+        if (scriptResult && scriptResult.result) self.applyScriptJob(scriptResult.result);
+      } catch(e) { self.logAgentAction('script', 'Script Agent', 'Error — continuing: ' + e.message, 'y'); }
+
+      // ── PHASE 2: Layout Planner ──────────────────────────
+      self._updateVideoProgress(10, '🎨 Layout Planner: Assigning scene layouts…');
+      if (self.state.scenes.length) {
+        try {
+          await self.runLayoutPlannerAgent('cinematic');
+        } catch(e) { self.logAgentAction('layout_planner', 'Layout Planner', 'Skipped: ' + e.message, 'y'); }
+      }
+
+      // ── PHASE 3: Image Generator (prompts) ──────────────
+      self._updateVideoProgress(15, '🖼️ Image Generator: Generating visual prompts for each scene…');
+      for (var i = 0; i < Math.min(self.state.scenes.length, 4); i++) {
+        try { await self.runImageGeneratorAgent(i); } catch(e) {}
+      }
+
+      // ── PHASE 4: Avatar Generator ────────────────────────
+      self._updateVideoProgress(20, '🧑 Avatar Generator: AI presenter prompt ready…');
+      try { await self.runAvatarGeneratorAgent(); } catch(e) {}
+
+      // ── PHASE 5: SEO Metadata ────────────────────────────
+      self._updateVideoProgress(24, '🔍 SEO Metadata Agent: Title, tags, description…');
+      try { await self.runSEOMetadataAgent('youtube'); } catch(e) {}
+
+      // ── PHASE 6: Viral Hook Analyzer ─────────────────────
+      self._updateVideoProgress(28, '🎯 Viral Hook Agent: Scoring the opening hook…');
+      try { await self.runViralHookAgent('youtube'); } catch(e) {}
+
+      // ── PHASE 7: Emotion Analysis ────────────────────────
+      self._updateVideoProgress(32, '💡 Emotion Agent: Detecting scene-wise emotions…');
+      try { await self.runEmotionAnalysisAgent(); } catch(e) {}
+
+      // ── PHASE 8: Script Optimizer ────────────────────────
+      self._updateVideoProgress(36, '✍️ Script Optimizer: Rewriting for better engagement…');
+      try { await self.runScriptOptimizerAgent('engagement', 'professional'); } catch(e) {}
+
+      // ── PHASE 9: Music / Sound ───────────────────────────
+      self._updateVideoProgress(40, '🎵 Music Agent: Mood-matched background music select…');
+      try { await self.runMusicSoundAgent('energetic'); } catch(e) {}
+
+      // ── PHASE 10: Color Grading ──────────────────────────
+      self._updateVideoProgress(44, '🎬 Color Grading: Applying Cinematic LUT…');
+      try { await self.runColorGradingAgent('cinematic', 0.7); } catch(e) {}
+
+      // ── PHASE 11: B-Roll Suggestions ─────────────────────
+      self._updateVideoProgress(47, '📹 B-Roll Agent: Contextual footage suggestions…');
+      try { await self.runBRollSuggestionAgent('cinematic'); } catch(e) {}
+
+      // ── PHASE 12: Chapter Markers ────────────────────────
+      self._updateVideoProgress(50, '📌 Chapter Marker: YouTube timestamps generate…');
+      try { await self.runChapterMarkerAgent(20); } catch(e) {}
+
+      // ── PHASE 13: Thumbnail Generator ───────────────────
+      self._updateVideoProgress(53, '🖼️ Thumbnail Agent: Viral thumbnail prompt ready…');
+      try { await self.runThumbnailGenAgent('bold-text-overlay', 'dark-purple'); } catch(e) {}
+
+      // ── PHASE 14: Brand Kit ──────────────────────────────
+      self._updateVideoProgress(56, '🏷️ Brand Kit: Applying logo + watermark…');
+      try { await self.runBrandKitAgent(); } catch(e) {}
+
+      // ── PHASE 15: Noise Reduction (command ready) ────────
+      self._updateVideoProgress(59, '🔇 Noise Reduction: FFmpeg audio cleanup command…');
+      try { await self.runNoiseReductionAgent('auto', 0.5); } catch(e) {}
+
+      // ── PHASE 16: Export Optimizer command ──────────────
+      self._updateVideoProgress(62, '📦 Export Optimizer: Platform-optimized encode preset…');
+      try { await self.runExportOptimizerAgent('16:9', '1080p', 'h264'); } catch(e) {}
+
+      // ── PHASE 17: START ACTUAL VIDEO RENDER PIPELINE ────
+      self._updateVideoProgress(65, '🎥 Compositor: Starting cinema-grade render pipeline…');
+      self.logAgentAction('compositor', 'Compositor Agent', 'Sending ' + self.state.scenes.length + ' scenes to FFmpeg pipeline → Flux images → gTTS audio → 1080p MP4', 'c');
+
+      var apiBase = (window.SmartEditBackend && window.SmartEditBackend.apiBase) || 'http://127.0.0.1:8000';
+
+      // Normalize scenes: map frontend format (s/e, vis.query) → backend format
+      var normalizedScenes = self.state.scenes.map(function(sc) {
+        return {
+          id:            sc.id,
+          start:         sc.s  !== undefined ? sc.s  : (sc.start  || 0),
+          end:           sc.e  !== undefined ? sc.e  : (sc.end    || 8),
+          text:          sc.text || '',
+          visual_prompt: sc.vis && sc.vis.query ? sc.vis.query : (sc.visual_prompt || sc.text || ''),
+          layout:        sc.layout || 'full-presenter',
+          notes:         sc.notes  || ''
+        };
+      });
+
+      var renderResp = await fetch(apiBase + '/api/v1/re-render-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenes:           normalizedScenes,
+          duration_seconds: duration,
+          language:         self.state.language || 'en',
+          aspect_ratio:     self.state.aspectRatio || '16:9',
+          image_style:      'cinematic photorealistic, professional lighting, ultra detailed, film grain, 8K',
+          avatar_style:     self.state.avatarStyle || 'none',
+          enable_lipsync:   self.state.enableLipsync || false
+        })
+      });
+
+      if (!renderResp.ok) {
+        var errText = await renderResp.text();
+        throw new Error('Render API error: ' + errText);
+      }
+
+      var renderJob = await renderResp.json();
+      var jobId = renderJob.job_id;
+      self.state.currentJobId = jobId;
+      self.logAgentAction('compositor', 'Compositor Agent', 'Job ' + jobId + ' queued — polling status…', 'g');
+
+      // ── PHASE 18: Poll until done ────────────────────────
+      await self._pollRenderJob(jobId, apiBase);
+
+    } catch(err) {
+      self.logAgentAction('pipeline', 'Full Pipeline', 'Pipeline failed: ' + (err && err.message ? err.message : String(err)), 'r');
+      self._updateVideoProgress(0, '❌ Error: ' + (err && err.message ? err.message : 'Unknown error'), true);
+      if (typeof toast === 'function') toast('Pipeline error: ' + (err && err.message ? err.message : 'Unknown'), 'error');
+    }
+  },
+
+  // ── Polling helper ──────────────────────────────────────────
+  _pollRenderJob: async function(jobId, apiBase) {
+    var self = this;
+    var maxWait = 600000; // 10 minutes max
+    var startTime = Date.now();
+    var pollInterval = 3000; // poll every 3s
+
+    return new Promise(function(resolve, reject) {
+      var timer = setInterval(async function() {
+        if (Date.now() - startTime > maxWait) {
+          clearInterval(timer);
+          reject(new Error('Video render timeout (10 min). FFmpeg or Colab is slow.'));
+          return;
+        }
+        try {
+          var statusResp = await fetch(apiBase + '/api/v1/job-status/' + jobId);
+          if (!statusResp.ok) return;
+          var job = await statusResp.json();
+          var pct = 65 + Math.round((job.progress || 0) * 0.35); // 65% → 100%
+          var msg = job.message || 'Processing…';
+          self._updateVideoProgress(pct, '⚙️ ' + msg);
+          self.logAgentAction('compositor', 'Compositor Agent', msg + ' (' + (job.progress || 0) + '%)', 'c');
+
+          if (job.status === 'completed') {
+            clearInterval(timer);
+            var downloadUrl = (job.result && job.result.download_url) ? job.result.download_url : null;
+            var sceneCount = (job.result && job.result.scene_count) ? job.result.scene_count : '?';
+            self._updateVideoProgress(100, '✅ Video ready! ' + sceneCount + ' scenes render hua!', false, apiBase + (downloadUrl || ''));
+            self.logAgentAction('compositor', 'Compositor Agent', '🎉 Final MP4 ready! Download: ' + downloadUrl, 'g');
+            if (typeof toast === 'function') toast('🎉 Video ready! ' + sceneCount + ' scenes rendered!');
+            resolve(job);
+          } else if (job.status === 'failed') {
+            clearInterval(timer);
+            reject(new Error(job.error || job.message || 'Render failed'));
+          }
+        } catch(e) { /* network hiccup — keep polling */ }
+      }, pollInterval);
+    });
+  },
+
+  // ── Progress Modal helpers ──────────────────────────────────
+  _showVideoProgressModal: function(prompt) {
+    var existing = document.getElementById('se-video-progress-modal');
+    if (existing) existing.remove();
+
+    var modal = document.createElement('div');
+    modal.id = 'se-video-progress-modal';
+    modal.style.cssText = [
+      'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;',
+      'background:rgba(0,0,0,0.82);backdrop-filter:blur(12px);'
+    ].join('');
+
+    modal.innerHTML = [
+      '<div style="background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);border:1px solid rgba(139,92,246,0.4);',
+      'border-radius:20px;padding:40px;max-width:560px;width:90%;box-shadow:0 0 60px rgba(139,92,246,0.3);position:relative;">',
+
+      '<div style="position:absolute;top:14px;right:16px;cursor:pointer;font-size:20px;color:rgba(255,255,255,0.5);" ',
+      'onclick="document.getElementById(\'se-video-progress-modal\').remove()">✕</div>',
+
+      '<div style="text-align:center;margin-bottom:24px;">',
+      '<div style="font-size:36px;margin-bottom:8px;">🎬</div>',
+      '<h2 style="margin:0;color:#fff;font-size:20px;font-weight:700;">Video production</h2>',
+      '<p style="color:rgba(255,255,255,0.5);font-size:13px;margin:6px 0 0;">',
+      '"' + (prompt || '').substring(0, 60) + (prompt && prompt.length > 60 ? '…' : '') + '"</p>',
+      '</div>',
+
+      '<div style="background:rgba(0,0,0,0.3);border-radius:10px;height:12px;overflow:hidden;margin-bottom:12px;">',
+      '<div id="se-vp-bar" style="height:100%;width:0%;background:linear-gradient(90deg,#8B5CF6,#06B6D4);',
+      'transition:width 0.6s ease;border-radius:10px;box-shadow:0 0 12px #8B5CF6;"></div>',
+      '</div>',
+
+      '<div style="display:flex;justify-content:space-between;margin-bottom:20px;">',
+      '<span id="se-vp-msg" style="color:#A78BFA;font-size:13px;font-weight:600;">Starting…</span>',
+      '<span id="se-vp-pct" style="color:#06B6D4;font-size:13px;font-weight:700;">0%</span>',
+      '</div>',
+
+      '<div id="se-vp-steps" style="display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;',
+      'background:rgba(0,0,0,0.2);border-radius:10px;padding:12px;">',
+      '<div style="color:rgba(255,255,255,0.35);font-size:11px;text-align:center;">Agent logs will appear here…</div>',
+      '</div>',
+
+      '<div id="se-vp-download" style="display:none;margin-top:20px;text-align:center;">',
+      '<div style="display:flex;gap:12px;justify-content:center;align-items:center;">',
+      '<a id="se-vp-dl-link" href="#" target="_blank" style="',
+      'display:inline-block;padding:12px 32px;background:linear-gradient(135deg,#8B5CF6,#06B6D4);',
+      'color:#fff;border-radius:10px;font-weight:700;text-decoration:none;font-size:15px;',
+      'box-shadow:0 4px 20px rgba(139,92,246,0.5);transition:transform 0.2s;" ',
+      'onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'\'">',
+      '⬇️ Download Video</a>',
+      '<button id="se-vp-proj-btn" onclick="openVideoInProjector()" style="',
+      'display:inline-block;padding:12px 32px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);',
+      'color:#fff;border-radius:10px;font-weight:700;cursor:pointer;font-size:15px;transition:background 0.2s;" ',
+      'onmouseover="this.style.background=\'rgba(255,255,255,0.2)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.1)\'">',
+      '📽️ AI Video Projector</button>',
+      '</div>',
+      '</div>',
+
+      '</div>'
+    ].join('');
+
+    document.body.appendChild(modal);
+  },
+
+  _updateVideoProgress: function(pct, msg, isError, downloadUrl) {
+    var bar = document.getElementById('se-vp-bar');
+    var msgEl = document.getElementById('se-vp-msg');
+    var pctEl = document.getElementById('se-vp-pct');
+    var stepsEl = document.getElementById('se-vp-steps');
+    var dlDiv = document.getElementById('se-vp-download');
+    var dlLink = document.getElementById('se-vp-dl-link');
+
+    if (bar) {
+      bar.style.width = pct + '%';
+      if (isError) bar.style.background = 'linear-gradient(90deg,#EF4444,#F97316)';
+    }
+    if (msgEl) {
+      msgEl.textContent = msg || '';
+      msgEl.style.color = isError ? '#EF4444' : '#A78BFA';
+    }
+    if (pctEl) pctEl.textContent = pct + '%';
+    if (stepsEl) {
+      var entry = document.createElement('div');
+      entry.style.cssText = 'font-size:11px;color:rgba(255,255,255,0.65);padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.05);';
+      entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + (msg || '');
+      stepsEl.prepend(entry);
+    }
+    if (downloadUrl && dlDiv && dlLink) {
+      dlLink.href = downloadUrl;
+      dlDiv.style.display = 'block';
+    }
   }
 };
 
@@ -774,3 +1167,19 @@ window.handleNLCommand = function(inputElId) {
   AgentPipeline.runNLEditAgent(inputElId);
 };
 
+// Global trigger — call from anywhere: generateFullVideo('My prompt', 60)
+window.generateFullVideo = function(prompt, duration) {
+  if (window.AgentPipeline) {
+    window.AgentPipeline.runFullAgentChain(prompt, duration || 60);
+  }
+};
+
+window.openVideoInProjector = function() {
+  var dlLink = document.getElementById('se-vp-dl-link');
+  if (dlLink && dlLink.href) {
+    var modal = document.getElementById('se-video-progress-modal');
+    if (modal) modal.remove();
+    if (typeof goTo === 'function') goTo('editor');
+    if (typeof loadRealVideo === 'function') loadRealVideo(dlLink.href);
+  }
+};

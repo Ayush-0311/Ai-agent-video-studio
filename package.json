@@ -1,12 +1,14 @@
 {
   "name": "smartedit-ai",
   "version": "1.0.0",
-  "description": "SmartEditAI - 16 Agent Autonomous Video Studio",
+  "description": "SmartEditAI - local video editor and connected AI video studio",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "test": "node tests/run-checks.cjs",
+    "test:audit": "node tests/run-checks.cjs audit editor"
   },
   "author": "Antigravity",
   "license": "MIT",
