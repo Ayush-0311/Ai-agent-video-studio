@@ -19,6 +19,9 @@
     retryPreview.onclick = () => syncPreview(true);
     const previewNote = make('div', 'Timeline preview', 'editor-preview-note'); $('preview-screen').append(previewNote);
     const brand = make('div', '', 'editor-brand'); $('preview-screen').append(brand);
+    const screenText = make('div'); screenText.id='editor-screen-text';
+    screenText.style.cssText='position:absolute;top:12%;left:7%;width:86%;text-align:center;white-space:pre-wrap;overflow-wrap:anywhere;font-weight:800;font-size:clamp(14px,2vw,30px);color:white;text-shadow:0 2px 4px black;pointer-events:none;z-index:2';
+    $('preview-screen').append(screenText);
     const regionPreview = make('div'); regionPreview.id = 'editor-region-preview';
     const regionImage = make('img'); regionImage.style.cssText = 'width:100%;height:100%;object-fit:cover'; regionPreview.append(regionImage);
     regionPreview.style.cssText = 'position:absolute;pointer-events:none;z-index:2;overflow:hidden'; $('preview-screen').append(regionPreview);
@@ -86,9 +89,32 @@
         video.volume = monitorVolume * (exportURL ? 1 : scene?.volume ?? 1);
         updateAudioControls();
         const sub = $('subtitle-display');
-        document.querySelector('.subtitle-bar').style.display = !exportURL && p.captions ? 'block' : 'none';
-        sub.textContent = p.captions ? scene?.text || '' : '';
+        const storyboard = !!scene && !exportURL && !info(scene);
+        screen.classList.toggle('is-storyboard', storyboard);
+        sub.tabIndex = storyboard ? 0 : -1;
+        sub.setAttribute('aria-label', storyboard ? 'Scene script preview' : 'Captions');
+        const seconds = Math.max(0, Math.round(DURATION || 0));
+        $('preview-total-duration').textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+        document.querySelector('.subtitle-bar').style.display = !exportURL && p.captions ? (storyboard ? 'flex' : 'block') : 'none';
+        let caption = scene?.text || '';
+        const key = text => (text || '').normalize('NFC').trim().replace(/\s+/g, ' ');
+        if (scene?.caption_words?.length && key(scene.caption_source_text) === key(caption)) {
+            const start = scene.sourceStart || 0, end = scene.sourceEnd;
+            const words = scene.caption_words.filter(w => w.end > start && w.start < end)
+                .map(w => ({...w, start: Math.max(start,w.start), end: Math.min(end,w.end)}));
+            const time = start + Math.max(0,currentTime-scene.s)*(scene.speed || 1);
+            const groups = []; let group = [];
+            for (const word of words) {
+                if (group.length && (/[.!?।]["”’]*$/.test(group.at(-1).text) || group.length >= 7 || (word.start-group.at(-1).end)/(scene.speed || 1) > .45 ||
+                    (word.end-group[0].start)/(scene.speed || 1) > 3)) { groups.push(group); group = []; }
+                group.push(word);
+            }
+            if (group.length) groups.push(group);
+            caption = (groups.find(g => time >= g[0].start && time < g.at(-1).end) || []).map(w => w.text).join(' ');
+        }
+        sub.textContent = p.captions ? caption : '';
         brand.textContent = exportURL ? '' : p.brand || '';
+        screenText.textContent = exportURL ? '' : scene?.overlay_text || '';
         previewNote.textContent = exportURL ? 'Exported MP4 · ready to download' : 'Timeline preview · Export to download';
         const fx = scene?.effects || {}, progress = scene ? Math.max(0, Math.min(1,(currentTime-scene.s)/(scene.e-scene.s))) : 0;
         regionPreview.hidden = !!exportURL || !scene || !fx.region || fx.region === 'none';
@@ -107,12 +133,14 @@
             if(index>0)fade=Math.max(fade,1-(currentTime-scene.s)/d);
             if(index<scenes().length-1)fade=Math.max(fade,1-(scene.e-currentTime)/d);
         }
+        const explicitFade=!exportURL&&scene?.fade_out;
+        if(explicitFade)fade=Math.max(fade,1-(scene.e-currentTime)/Math.min(.65,(scene.e-scene.s)/2));
         fadePreview.hidden=fade<=0;fadePreview.style.opacity=Math.max(0,Math.min(1,fade));
-        fadePreview.style.background=p.transition==='fade_white'?'white':'black';
+        fadePreview.style.background=!explicitFade&&p.transition==='fade_white'?'white':'black';
         if (!exportURL&&fx.key_enabled) previewNote.textContent='Chroma key enabled · Export to preview the replaced background';
         if (monitorVolume === 0) previewNote.textContent += ' · Preview muted — click the speaker to hear audio';
         else if (video.muted || video.volume === 0) previewNote.textContent += ' · Selected clip is muted';
-        else if (!exportURL && !info(scene) && p.narration) previewNote.textContent = 'Storyboard only · Open a completed video or export to hear narration';
+        else if (storyboard) previewNote.textContent = 'Storyboard · Script preview only · Export to create video' + (p.narration ? ' and voice' : '');
     }
     function setPlayingUI() {
         $('play-pause-btn').textContent = isPlaying ? '❚❚' : '▶';
@@ -146,7 +174,7 @@
     function syncPreview(force = false) {
         const scene = sceneAt(currentTime), source = exportURL ? {key:exportURL, kind:'video', url:exportURL, start:0, speed:1} : info(scene);
         playbackScene = scene; stylePreview(scene); setPlayingUI();
-        empty.hidden = !!source; empty.textContent = scenes().length ? 'Generate or export this scene to create its preview.' : 'Import a video to start editing.';
+        empty.hidden = !!source || !!(scene?.text && S.getProject()?.captions); empty.textContent = scenes().length ? 'Generate or export this scene to create its preview.' : 'Import a video to start editing.';
         previewImage.style.display = source?.kind === 'image' ? 'block' : 'none';
         video.style.display = source?.kind === 'video' ? 'block' : 'none';
         $('preview-bg-fallback').style.display = 'none';
@@ -329,6 +357,8 @@
             field(form, 'Mirror horizontally', 'clip-flip', 'checkbox', s.flip);
             field(form, 'Mute source audio', 'clip-muted', 'checkbox', s.muted);
             field(form, 'Caption text', 'clip-caption', 'textarea', s.text || '');
+            field(form, 'Screen text (separate from speech)', 'clip-screen-text', 'textarea', s.overlay_text || '').maxLength=300;
+            field(form, 'Fade this scene to black', 'clip-fade-out', 'checkbox', s.fade_out);
             for(const [key,label,value,min,max] of [['brightness','Brightness',s.brightness??0,-.15,.15],['contrast','Contrast',s.contrast??1,.5,1.5],['saturation','Saturation',s.saturation??1,0,2],['sharpness','Sharpen',s.sharpness??0,0,1]]) {
                 const control=field(form,label,'clip-'+key,'number',value);control.min=min;control.max=max;
             }
@@ -365,6 +395,7 @@
                 for(const key of ['width','height','x','y','end_x','end_y']){effects[key]=Number($('fx-'+key).value)/100;const min=['width','height'].includes(key) ? 0.05 : 0;if(!Number.isFinite(effects[key])||effects[key]<min||effects[key]>1)throw new Error('Use valid region percentages.');}
                 if(effects.region==='image'&&!effects.overlay_id)throw new Error('Choose an overlay image first.');
                 setRange(Number($('clip-source-in').value), Number($('clip-source-out').value), Number($('clip-speed').value), {effects,volume:volume/100, fit:$('clip-fit').value, flip:$('clip-flip').checked, muted:$('clip-muted').checked, text:$('clip-caption').value,
+                    overlay_text:$('clip-screen-text').value,fade_out:$('clip-fade-out').checked,
                     brightness:Number($('clip-brightness').value),contrast:Number($('clip-contrast').value),saturation:Number($('clip-saturation').value),sharpness:Number($('clip-sharpness').value)}); });
         }
         host.append(form);
@@ -395,15 +426,16 @@
         field(output, 'Show captions', 'editor-captions', 'checkbox', p.captions);
         field(output, 'Watermark / title', 'editor-brand', 'text', p.brand || '').maxLength=60;
         field(output, 'Reduce source noise (export)', 'editor-denoise', 'checkbox', p.denoise);
+        field(output, 'Automatic instrumental (export)', 'editor-auto-music', 'select', p.auto_music || 'off', [['off','Off'],['cinematic','Cinematic'],['uplifting','Uplifting'],['calm','Calm']]);
         const mv = field(output, 'Background music (0–50%)', 'editor-music-volume', 'number', Math.round(p.music_volume * 100)); mv.min='0'; mv.max='50';
         const apply = make('button', 'Apply video settings', 'btn btn-primary btn-sm'); apply.type='submit'; output.append(apply);
         output.onsubmit = guarded(e => { e.preventDefault(); const mv=Number($('editor-music-volume').value); if (!Number.isFinite(mv)||mv<0||mv>50) throw new Error('Music volume must be between 0 and 50%.');
             const transitionDuration=Number($('editor-transition-duration').value);if(!Number.isFinite(transitionDuration)||transitionDuration<.1||transitionDuration>1)throw new Error('Fade duration must be 0.1–1 seconds.');
-            const changes={transition:$('editor-transition').value,transition_duration:transitionDuration,aspect_ratio:$('editor-ratio').value,color:$('editor-color').value,captions:$('editor-captions').checked,brand:$('editor-brand').value,denoise:$('editor-denoise').checked,music_volume:mv/100};
+            const changes={transition:$('editor-transition').value,transition_duration:transitionDuration,aspect_ratio:$('editor-ratio').value,color:$('editor-color').value,captions:$('editor-captions').checked,brand:$('editor-brand').value,denoise:$('editor-denoise').checked,music_volume:mv/100,auto_music:$('editor-auto-music').value};
             if(p.generation_mode==='avatar')Object.assign(changes,{presenter_layout:$('editor-presenter-layout').value,presenter_character:$('editor-presenter-character').value,presenter_theme:$('editor-presenter-theme').value});
             S.history(); Object.assign(p, changes); AgentPipeline.state.aspectRatio = selectedPreset = currentAspectRatio = p.aspect_ratio; S.updateViews(); });
         if (p.music_id) { const remove=make('button','Remove music','btn btn-secondary btn-sm'); remove.type='button'; remove.onclick=guarded(()=>{S.history();p.music_id='';music.pause();S.updateViews();}); output.append(remove); }
-        output.append(make('p', 'Color preview is approximate. Export applies final color, audio cleanup and music ducking.', 'editor-help')); host.append(output);
+        output.append(make('p', 'Color and screen-text preview are approximate. Export applies final typography, audio cleanup, automatic instrumental and music ducking. Uploaded music takes priority.', 'editor-help')); host.append(output);
     };
     $('view-editor').querySelector('.panel-right .panel-label').textContent = 'CLIP & VIDEO SETTINGS';
     $('de-tabs').style.display = 'none';

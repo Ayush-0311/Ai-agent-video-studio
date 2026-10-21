@@ -4,14 +4,130 @@ from pathlib import Path
 import tempfile
 import unittest
 import uuid
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 from fastapi.testclient import TestClient
 import main
 import studio
 
+ANALYZE_VIDEO_BRIEF = studio.video_brief.analyze
+
 
 class StudioTests(unittest.TestCase):
+    def test_ready_script_auto_detection_preserves_dialogue_timing_and_overlays(self):
+        from test_ready_script import SAMPLE
+        rows=studio.ready_script.parse(SAMPLE)
+        p=studio.Project(prompt=SAMPLE,generation_mode='hybrid',duration=20)
+        with patch.object(studio,'chat',side_effect=self.agent_reply({})) as chat, \
+             patch.object(studio.video_brief,'analyze') as analyst, \
+             patch.object(studio.explainer_research,'lookup') as lookup:
+            result=studio.plan(self.job(p),p)
+        self.assertEqual(chat.call_count,2)
+        self.assertTrue(all('scriptwriter' not in c.args[0] for c in chat.call_args_list))
+        analyst.assert_not_called()
+        lookup.assert_not_called()
+        self.assertEqual((p.scene_mode,p.duration,p.generation_mode,p.language,p.aspect_ratio,p.script_voice_gender),
+                         ('ready',60,'images','hi','9:16','male'))
+        self.assertEqual([s.text for s in p.scenes],[r['text'] for r in rows])
+        self.assertEqual([s.end for s in p.scenes],[5,5,5,10,10,10,10,5])
+        self.assertTrue(p.scenes[-1].fade_out)
+        self.assertEqual(result['scenes'][-1]['overlay_text'],'YOUR STORY IS NOT OVER.')
+        saved=studio.Project.model_validate(result)
+        self.assertEqual(saved.scenes[-1].overlay_text,p.scenes[-1].overlay_text)
+
+    def test_ready_long_voice_reports_scene_before_images_without_rewriting(self):
+        p=studio.Project(scene_mode='ready',duration=10,duration_mode='target',
+                         scenes=[studio.Scene(text='Keep this dialogue unchanged.',end=10)])
+        with patch.object(studio,'scene_voice',return_value=(self.music,15)), \
+             patch.object(studio,'chat') as chat, patch.object(studio,'image_asset') as images:
+            with self.assertRaisesRegex(ValueError,r'Scene 1: supplied voiceover needs 15.0s'):
+                studio.render(self.job(p),p)
+        chat.assert_not_called()
+        images.assert_not_called()
+        self.assertEqual(p.scenes[0].text,'Keep this dialogue unchanged.')
+
+    def test_ready_motion_slot_limit_is_checked_before_director(self):
+        p=studio.Project(prompt='0–10 sec: Visual: A man running. Voiceover: “Keep going.”',
+                         scene_mode='ready',generation_mode='motion',motion_preset='preview')
+        with patch.object(studio,'chat') as chat:
+            with self.assertRaisesRegex(ValueError,'locked slot'):
+                studio.plan(self.job(p),p)
+        chat.assert_not_called()
+        self.assertEqual(p.scenes,[])
+
+    def test_ready_sixty_second_export_music_overlay_and_silent_slots(self):
+        from test_ready_script import SAMPLE
+        rows=studio.ready_script.parse(SAMPLE)
+        p=studio.Project(duration=60,duration_mode='target',scene_mode='ready',resolution='720p',
+                         aspect_ratio='9:16',narration=False,captions=False,auto_music='cinematic',
+                         scenes=[studio.Scene(asset_id=self.image_meta['id'],text=r['text'],
+                             overlay_text=r['overlay_text'],fade_out=r['fade_out'],end=r['end']-r['start'])
+                             for r in rows])
+        jid=self.job(p)
+        with patch.object(studio,'voice_asset',side_effect=AssertionError('Silent choice was ignored')):
+            result=studio.render(jid,p)
+        stream=next(s for s in studio.probe(self.root/'renders'/jid/'final.mp4')['streams'] if s['codec_type']=='video')
+        self.assertEqual(int(stream['nb_frames']),1800)
+        self.assertEqual((stream['width'],stream['height']),(720,1280))
+        self.assertEqual(result['duration'],60)
+        self.assertTrue(studio.audible(self.root/'renders'/jid/'final.mp4'))
+        ass=(self.root/'renders'/jid/'captions.ass').read_text('utf-8-sig')
+        self.assertIn('Dialogue: 2,0:00:55.00,0:01:00.00,Overlay',ass)
+        self.assertIn('YOUR STORY IS NOT OVER.',ass.replace('\\N',' '))
+        self.assertNotIn('ज़िंदगी',ass)
+        self.assertEqual(result['project']['production_notes']['music']['provider'],'Local instrumental composer')
+        import numpy as np
+        def pixels(at):
+            return np.frombuffer(studio.run([self.ff,'-v','error','-ss',str(at),'-i',
+                str(self.root/'renders'/jid/'final.mp4'),'-frames:v','1','-pix_fmt','rgb24',
+                '-f','rawvideo','-']),dtype=np.uint8).reshape(1280,720,3)
+        self.assertGreater(int(np.sum(np.all(pixels(2)[140:400]>220,axis=2))),100,
+                           'Screen text was not burned into the final video')
+        self.assertLess(float(pixels(59.96).mean()),10,'Final image did not fade to black')
+
+    def test_ready_silent_visual_scene_does_not_require_dialogue(self):
+        p=studio.Project(duration=10,duration_mode='target',scene_mode='ready',
+                         scenes=[studio.Scene(text='',visual_prompt='Sunrise',end=10)])
+        cache=self.root/'ready-cache';cache.mkdir(exist_ok=True)
+        prepared,tempos=studio.prepare_narration(self.job(p),p,cache,[10])
+        self.assertEqual(prepared[0],(None,0))
+
+    def test_character_reference_only_conditions_matching_image_scenes(self):
+        import shutil
+        p=studio.Project(narration=False,captions=False,character_reference=True,resolution='720p',
+                         scenes=[studio.Scene(visual_prompt='A young man studying at his desk.',end=1),
+                                 studio.Scene(visual_prompt='Empty mountain landscape at dawn.',end=1)])
+        p.production_notes={'agent_workflow':{'characters':[{'key':'hero','appearance':'Young man with short dark hair, blue jacket.'}],
+            'scene_characters':{p.scenes[0].id:['hero'],p.scenes[1].id:[]}}}
+        calls=[]
+        def image(prompt,style,ratio,output,reference=None):
+            calls.append((prompt,reference))
+            shutil.copyfile(self.image,output)
+        health=Mock();health.json.return_value={'reference_images':True}
+        with patch.object(studio.requests,'get',return_value=health),patch.object(studio,'image_asset',side_effect=image):
+            studio.render(self.job(p),p)
+            studio.render(self.job(p),p)
+        self.assertEqual(len(calls),3,'Unchanged renders should reuse portrait and scene image caches')
+        self.assertIsNone(calls[0][1])
+        self.assertIsNotNone(calls[1][1])
+        self.assertIsNone(calls[2][1])
+        health.json.return_value={'reference_images':False}
+        with patch.object(studio.requests,'get',return_value=health),patch.object(studio,'image_asset') as images:
+            with self.assertRaisesRegex(ValueError,'updated Colab notebook'):
+                studio.render(self.job(p),p)
+        images.assert_not_called()
+
+    def test_image_request_transmits_optional_reference(self):
+        import base64
+        cfg=studio.settings().model_copy(update={'image_url':'http://fixture.invalid'})
+        response=Mock();response.headers={'content-type':'image/png'};response.content=self.image.read_bytes()
+        output=self.root/'reference-output.png'
+        with patch.object(studio,'settings',return_value=cfg),patch.object(studio.requests,'post',return_value=response) as post:
+            studio.image_asset('A man','cinematic','9:16',output,self.image)
+            self.assertEqual(base64.b64decode(post.call_args.kwargs['json']['reference_image']),self.image.read_bytes())
+            studio.image_asset('A landscape','cinematic','9:16',output)
+            self.assertNotIn('reference_image',post.call_args.kwargs['json'])
+
     def test_natural_narration_ends_with_speech_and_preserves_editable_timestamps(self):
         import hashlib
         import speech_timing
@@ -97,19 +213,19 @@ class StudioTests(unittest.TestCase):
         p=studio.Project(duration=10,duration_mode='target',scenes=[studio.Scene(text=' '.join(['word']*30),end=10)])
         jid=self.job(p)
         cache=self.root/'timing-cache';cache.mkdir(exist_ok=True)
-        with patch.object(studio,'scene_voice',side_effect=[(self.music,18),(self.music,8)]), patch.object(studio,'chat',return_value={'scenes':[{'id':p.scenes[0].id,'text':'Machines learn patterns from examples to make predictions.'}]}) as chat:
+        with patch.object(studio,'scene_voice',side_effect=[(self.music,18),(self.music,9.5)]), patch.object(studio,'chat',return_value={'scenes':[{'id':p.scenes[0].id,'text':'Machines learn patterns from examples to make predictions.','visual_prompt':'Fruit photographs grouped by shape'}]}) as chat:
             voices,tempos=studio.prepare_narration(jid,p,cache,[10])
         self.assertEqual(chat.call_count,1)
-        self.assertEqual(voices[0][1],8)
+        self.assertEqual(voices[0][1],9.5)
         self.assertEqual(tempos[0],1)
         self.assertTrue(p.scenes[0].text.startswith('Machines learn'))
 
     def test_target_overlong_after_repair_stops_before_images(self):
         p=studio.Project(duration=10,duration_mode='target',scenes=[studio.Scene(text=' '.join(['word']*30),end=10)])
-        with patch.object(studio,'scene_voice',return_value=(self.music,18)), patch.object(studio,'chat',return_value={'scenes':[{'id':p.scenes[0].id,'text':'A short factual example.'}]}) as chat, patch.object(studio,'image_asset') as image:
-            with self.assertRaisesRegex(ValueError,'still needs'):
+        with patch.object(studio,'scene_voice',return_value=(self.music,18)), patch.object(studio,'chat',return_value={'scenes':[{'id':p.scenes[0].id,'text':'A short factual example.','visual_prompt':'A concrete example'}]}) as chat, patch.object(studio,'image_asset') as image:
+            with self.assertRaisesRegex(ValueError,'could not fill'):
                 studio.render(self.job(p),p)
-        self.assertEqual(chat.call_count,1)
+        self.assertEqual(chat.call_count,3)
         image.assert_not_called()
 
     def test_target_missing_or_silent_voice_stops_before_visuals(self):
@@ -145,7 +261,7 @@ class StudioTests(unittest.TestCase):
         self.assertIn('Silent video',result['audio_status'])
 
     def test_target_planner_repairs_word_budget_and_keeps_visuals(self):
-        p=studio.Project(duration=20,duration_mode='target',generation_mode='avatar',language='hi')
+        p=studio.Project(duration=20,duration_mode='target',generation_mode='images',language='hi',narration=False,captions=True)
         def reply(system,message):
             if system.startswith('You are a concise educational narration editor'):
                 body=json.loads(message)
@@ -161,6 +277,14 @@ class StudioTests(unittest.TestCase):
         self.assertTrue(all('Apples' in s['visual_prompt'] for s in result['scenes']))
 
     def setUp(self):
+        # These fixtures synthesize sine tones, not speech. Test the local aligner
+        # independently; live sample evidence also exercises the real Whisper model.
+        aligner = patch.object(studio.speech_timing,'align_narration',return_value=[])
+        aligner.start()
+        self.addCleanup(aligner.stop)
+        model = patch.dict(studio.ENV,{'get_whisper_model':lambda:None})
+        model.start()
+        self.addCleanup(model.stop)
         # External semantic reviewer is deterministic here; separate tests cover mismatches.
         reviewer = patch.object(studio, 'chat', side_effect=self.agent_reply({}))
         reviewer.start()
@@ -168,6 +292,74 @@ class StudioTests(unittest.TestCase):
         lookup = patch.object(studio.explainer_research, 'lookup', return_value={'status':'unavailable','sources':[]})
         lookup.start()
         self.addCleanup(lookup.stop)
+        # Existing writer/renderer fixtures isolate those stages. Brief integration
+        # below restores the real analyst and supplies only its external AI replies.
+        analyst = patch.object(studio.video_brief, 'analyze',
+                               side_effect=lambda project,chat,checkpoint:studio.video_brief.fallback(project))
+        analyst.start()
+        self.addCleanup(analyst.stop)
+
+    def test_interpreted_brief_drives_research_writer_and_visuals_in_all_modes(self):
+        for mode in ('avatar','images','hybrid','motion'):
+            for research_enabled in (True,False):
+                with self.subTest(mode=mode,research=research_enabled):
+                    interpreted={'topic':'Solar energy','objective':'Explain solar electricity with a home example',
+                        'audience':'School children','tone':'Simple conversational Hindi','kind':'explanation',
+                        'must_include':['Household example'],'avoid':['Technical jargon'],
+                        'visual_approach':'Show panels supplying household appliances',
+                        'needs_research':True,'search_query':'Solar power photovoltaic cells'}
+                    references={'status':'retrieved','sources':[{'title':'Solar power',
+                        'url':'https://en.wikipedia.org/wiki/Solar_power','excerpt':'Introductory solar electricity reference.'}]}
+                    count=4 if mode in ('motion','hybrid') else 2
+                    draft={'scenes':[{'text':'सूरज की रोशनी से घर के लिए बिजली बनती है।',
+                        'visual_prompt':'Solar panels powering a home','slide_title':'Solar power',
+                        'slide_points':['Electricity from light']} for _ in range(count)]}
+                    seen=[]
+                    def reply(system,message):
+                        body=json.loads(message)
+                        if system.startswith("You are SmartEdit's video brief analyst"):
+                            seen.append('brief')
+                            self.assertEqual(body['selected_settings']['duration_seconds'],20)
+                            return interpreted
+                        if system.startswith('You are a careful video scriptwriter'):
+                            seen.append('writer')
+                            self.assertEqual(body['video_brief']['audience'],'School children')
+                            self.assertEqual(body['video_brief']['must_include'],['Household example'])
+                            self.assertEqual(body['references'],references if research_enabled else {'status':'disabled','sources':[]})
+                            return draft
+                        if system.startswith("You are SmartEdit's shot director"):
+                            self.assertEqual(body['video_brief']['visual_approach'],interpreted['visual_approach'])
+                        return self.agent_reply(draft)(system,message)
+                    p=studio.Project(prompt='bhai bacchon ko solar power samjhana ghar ka example dena, jargon mat use karna',
+                        language='hi',duration=20,generation_mode=mode,research=research_enabled,duration_mode='target')
+                    with patch.object(studio.video_brief,'analyze',side_effect=ANALYZE_VIDEO_BRIEF), \
+                         patch.object(studio,'chat',side_effect=reply), \
+                         patch.object(studio.explainer_research,'lookup',return_value=references) as lookup:
+                        result=studio.plan(self.job(p),p)
+                    self.assertEqual(seen,['brief','writer'])
+                    if research_enabled:
+                        lookup.assert_called_once_with('Solar power photovoltaic cells',fallback_query='Solar energy')
+                    else:
+                        lookup.assert_not_called()
+                    self.assertEqual(result['production_notes']['video_brief']['avoid'],['Technical jargon'])
+                    self.assertEqual(result['duration'],20)
+
+    def test_creative_brief_skips_factual_lookup_and_manual_script_skips_analyst(self):
+        p=studio.Project(prompt='A playful puppy adventure',generation_mode='images',research=True)
+        brief={**studio.video_brief.fallback(p),'status':'interpreted','kind':'story','needs_research':False}
+        draft={'scenes':[{'text':'The puppy found a little ball.','visual_prompt':'Puppy discovering a ball in grass'}]}
+        with patch.object(studio.video_brief,'analyze',return_value=brief), \
+             patch.object(studio,'chat',side_effect=self.agent_reply(draft)) as chat, \
+             patch.object(studio.explainer_research,'lookup') as lookup:
+            studio.plan(self.job(p),p)
+        lookup.assert_not_called()
+        self.assertEqual(p.production_notes['research']['status'],'not_needed')
+        self.assertNotIn('define the topic',chat.call_args_list[0].args[0])
+        p.scene_mode='sentences'
+        with patch.object(studio.video_brief,'analyze') as analyst, \
+             patch.object(studio,'chat',side_effect=self.agent_reply(draft)):
+            studio.plan(self.job(p),p)
+        analyst.assert_not_called()
 
     def test_generate_owns_plan_and_render_and_returns_editable_project(self):
         p = studio.Project(prompt='Explain artificial intelligence', generation_mode='avatar', language='hi', duration=30)
@@ -233,6 +425,17 @@ class StudioTests(unittest.TestCase):
             self.assertEqual(queue.call_args.args[0], 'generate')
             self.assertIs(queue.call_args.args[2], studio.generate)
         self.assertEqual(self.client.post('/api/studio/generate',json={'prompt':''}).status_code, 400)
+
+    def test_short_topics_are_accepted_but_empty_prompts_are_not(self):
+        for endpoint in ('plan','generate'):
+            with patch.object(studio,'queue',return_value={'id':'a'*32}) as queue:
+                for prompt in ('AI','Sun','जल'):
+                    self.assertEqual(self.client.post('/api/studio/'+endpoint,
+                        json={'prompt':prompt}).status_code,200)
+                self.assertEqual(queue.call_count,3)
+                for prompt in ('','   ','\n'):
+                    self.assertEqual(self.client.post('/api/studio/'+endpoint,
+                        json={'prompt':prompt}).status_code,400)
 
     @classmethod
     def setUpClass(cls):
@@ -305,6 +508,204 @@ class StudioTests(unittest.TestCase):
         self.assertEqual(result['language'],'hi')
         self.assertGreater(result['scenes'][0]['end'],result['scenes'][0]['start'])
         self.assertEqual(len(result['scenes'][0]['id']),32)
+
+    def test_avatar_planner_repairs_invalid_drafts_before_directing(self):
+        valid = {'title':'Solar energy','scenes':[{'text':'सूरज से बिजली बनती है।',
+            'visual_prompt':'Solar panels in sunlight','slide_title':'सौर ऊर्जा','slide_points':['बिजली']}]}
+        invalid_drafts = [{}, {'scenes':[]}, {'scenes':{}}, {'scenes':[None]},
+                          {'scenes':[{'text':'Hello'}]},
+                          {'scenes':[{**valid['scenes'][0],'slide_points':None}]}]
+        for invalid in invalid_drafts:
+            with self.subTest(invalid=invalid):
+                drafts = iter([invalid, valid])
+                def reply(system, message):
+                    if system.startswith('You are a careful video scriptwriter'):
+                        return next(drafts)
+                    return self.agent_reply(valid)(system, message)
+                p = studio.Project(prompt='Explain solar energy',generation_mode='avatar',
+                                   duration=65,language='hi',duration_mode='target',research=False)
+                with patch.object(studio,'chat',side_effect=reply) as chat:
+                    result = studio.plan(self.job(p),p)
+                self.assertEqual(result['scenes'][0]['text'],valid['scenes'][0]['text'])
+                repair = json.loads(chat.call_args_list[1].args[1])
+                self.assertEqual(repair['invalid_draft'],invalid)
+                self.assertIn('two or three connected spoken sentences',chat.call_args_list[0].args[0])
+                self.assertNotIn('about 2 words per second',chat.call_args_list[0].args[0])
+
+    def test_invalid_storyboard_retries_are_bounded(self):
+        p = studio.Project(prompt='Explain solar energy',generation_mode='avatar',research=False)
+        with patch.object(studio,'chat',return_value={'scenes':[]}) as chat, \
+             patch.object(studio,'direct_scenes') as director:
+            with self.assertRaisesRegex(ValueError,'after 3 attempts'):
+                studio.plan(self.job(p),p)
+        self.assertEqual(chat.call_count,3)
+        director.assert_not_called()
+
+    def test_all_modes_repair_invalid_scene_lists_and_json(self):
+        for mode in ('avatar','images','hybrid','motion'):
+            for language in ('hi','en'):
+                count = 4 if mode in ('hybrid','motion') else 2
+                scene={'text':'सूरज से बिजली बनती है।' if language=='hi' else 'Sunlight produces electricity.',
+                       'visual_prompt':'Solar panels supplying a house',
+                       'slide_title':'Solar energy','slide_points':['Electricity from sunlight']}
+                valid={'title':'Solar energy','scenes':[dict(scene) for _ in range(count)]}
+                invalid_drafts=[None, [], {}, {'scenes':[]}, {'scenes':{}},
+                    {'scenes':[None]*count}, {'scenes':[{'text':'Hello'}]*count},
+                    {'scenes':[{**scene,'text':''}]*count},
+                    {'scenes':[{**scene,'visual_prompt':42}]*count},
+                    ValueError('Invalid JSON'),ValueError('Output limit reached')]
+                if mode == 'avatar':
+                    invalid_drafts.append({'scenes':[{**scene,'slide_points':None}]*count})
+                if mode in ('hybrid','motion'):
+                    invalid_drafts.append({'scenes':[scene]})
+                for invalid in invalid_drafts:
+                    with self.subTest(mode=mode,language=language,invalid=str(invalid)[:80]):
+                        drafts=iter([invalid, valid])
+                        def reply(system,message):
+                            if system.startswith('You are a careful video scriptwriter'):
+                                draft=next(drafts)
+                                if isinstance(draft,Exception):
+                                    raise draft
+                                return draft
+                            return self.agent_reply(valid)(system,message)
+                        p=studio.Project(prompt='Explain solar energy',generation_mode=mode,language=language,
+                                         duration=20,duration_mode='target',research=False)
+                        with patch.object(studio,'chat',side_effect=reply) as chat:
+                            result=studio.plan(self.job(p),p)
+                        writer_calls=[c for c in chat.call_args_list if c.args[0].startswith('You are a careful video scriptwriter')]
+                        self.assertEqual(len(writer_calls),2)
+                        self.assertEqual(len(result['scenes']),count)
+                        self.assertTrue(all(s['text']==scene['text'] for s in result['scenes']))
+                        self.assertTrue(json.loads(writer_calls[1].args[1])['validation_error'])
+
+    def test_all_modes_bound_failed_repairs_and_preserve_connection_errors(self):
+        for mode in ('avatar','images','hybrid','motion'):
+            for failure in ({'scenes':[]}, ValueError('Invalid JSON'),RuntimeError('Planner unavailable')):
+                with self.subTest(mode=mode,failure=str(failure)):
+                    p=studio.Project(prompt='Explain solar energy',generation_mode=mode,research=False)
+                    def reply(*args):
+                        if isinstance(failure,Exception):
+                            raise failure
+                        return failure
+                    with patch.object(studio,'chat',side_effect=reply) as chat, \
+                         patch.object(studio,'direct_scenes') as director:
+                        with self.assertRaises((ValueError,RuntimeError)):
+                            studio.plan(self.job(p),p)
+                    self.assertEqual(chat.call_count,1 if isinstance(failure,RuntimeError) else 3)
+                    director.assert_not_called()
+
+    def test_avatar_expands_short_narration_before_real_exact_export(self):
+        import shutil
+        p=studio.Project(prompt='Explain solar energy',generation_mode='avatar',language='en',
+                         duration=55,duration_mode='target',research=False,resolution='720p',captions=False,
+                         scenes=[studio.Scene(text='Short headline.',visual_prompt='Solar panels',end=11)
+                                 for _ in range(5)])
+        expanded='Sunlight reaches the solar panel. Its cells convert light into electricity, which can power appliances in a home.'
+        def reply(system,message):
+            if system.startswith('You are an educational video narration editor'):
+                request=json.loads(message)
+                self.assertLess(request['measured_seconds'],20)
+                return {'scenes':[{'id':s.id,'text':expanded,'slide_title':'Solar power',
+                    'slide_points':['Light becomes electricity'],'visual_prompt':'Solar panels powering household appliances'}
+                    for s in p.scenes]}
+            return self.agent_reply({})(system,message)
+        def voice(text,language,path):
+            seconds=10.5 if text==expanded else 2.5
+            studio.run([self.ff,'-y','-v','error','-f','lavfi','-i',
+                        f'sine=frequency=320:duration={seconds}',str(path)])
+            return True
+        jid=self.job(p)
+        with patch.object(studio,'chat',side_effect=reply),patch.object(studio,'voice_asset',side_effect=voice), \
+             patch.object(studio,'image_asset',side_effect=lambda prompt,style,ratio,out:shutil.copyfile(self.image,out)):
+            result=studio.render(jid,p)
+        self.assertAlmostEqual(result['duration'],55,places=2)
+        report=json.loads((self.root/'renders'/jid/'metadata.json').read_text())
+        fit=report['project']['production_notes']['narration_fit']
+        self.assertEqual(fit['rewrite_attempts'],1)
+        self.assertGreater(fit['speech_seconds'],52)
+        self.assertTrue(all(s.text==expanded for s in p.scenes))
+        self.assertTrue(all('appliances' in s.visual_prompt for s in p.scenes))
+        gaps=studio.speech_timing.quiet_intervals(self.ff,self.root/'renders'/jid/'final.mp4')
+        self.assertTrue(all(end-start<1 for start,end in gaps),gaps)
+
+    def test_avatar_does_not_render_silence_when_expansion_fails(self):
+        p=studio.Project(generation_mode='avatar',duration=60,duration_mode='target',
+                         scenes=[studio.Scene(text='A short line.',end=12) for _ in range(5)])
+        def reply(system,message):
+            return {'scenes':[{'id':s.id,'text':s.text,'slide_title':'Heading',
+                'slide_points':['Point'],'visual_prompt':'Relevant supporting image'} for s in p.scenes]}
+        with patch.object(studio,'scene_voice',return_value=(self.music,2.5)), \
+             patch.object(studio,'chat',side_effect=reply) as chat,patch.object(studio,'image_asset') as images:
+            with self.assertRaisesRegex(ValueError,'could not fill'):
+                studio.render(self.job(p),p)
+        self.assertEqual(chat.call_count,3)
+        images.assert_not_called()
+
+    def test_all_auto_modes_plan_narration_for_forty_seconds(self):
+        for mode in ('avatar','images','motion','hybrid'):
+            with self.subTest(mode=mode):
+                count = 8 if mode in ('motion','hybrid') else 3
+                draft={'scenes':[{'text':'सूरज की रोशनी से बिजली बनती है।',
+                    'visual_prompt':'Solar panels supplying a home','slide_title':'Solar energy',
+                    'slide_points':['Sunlight becomes electricity']} for _ in range(count)]}
+                p=studio.Project(prompt='Explain solar energy',generation_mode=mode,duration=40,
+                                 duration_mode='target',language='hi',research=False)
+                with patch.object(studio,'chat',side_effect=self.agent_reply(draft)) as chat:
+                    studio.plan(self.job(p),p)
+                request=json.loads(chat.call_args_list[0].args[1])
+                self.assertEqual(request['target_seconds'],40)
+                self.assertEqual(request['target_words'],100)
+                self.assertEqual(request['scene_count'],count)
+                self.assertEqual(request['selected_settings']['mode'],mode)
+                self.assertEqual(request['selected_settings']['duration_seconds'],40)
+                self.assertEqual(request['selected_settings']['language'],'hi')
+                expected=['motion']*count if mode=='motion' else ['motion']+['image']*(count-1) if mode=='hybrid' else ['avatar_slide' if mode=='avatar' else 'image']*count
+                self.assertEqual(request['visual_kind_by_scene'],expected)
+                self.assertNotIn('at most 8 words',chat.call_args_list[0].args[0])
+                self.assertEqual(len(p.scenes),count)
+                self.assertTrue(all(s.text==draft['scenes'][0]['text'] for s in p.scenes))
+
+    def test_images_hybrid_and_motion_expand_then_export_exactly_forty_seconds(self):
+        import shutil
+        for mode in ('images','hybrid','motion'):
+            with self.subTest(mode=mode):
+                count=3 if mode=='images' else 8
+                expanded=f'{mode}: Sunlight reaches solar cells and produces electricity to power household appliances.'
+                p=studio.Project(prompt='Explain solar energy',generation_mode=mode,duration=40,
+                    duration_mode='target',motion_preset='preview',resolution='720p',captions=False,
+                    scenes=[studio.Scene(text=f'{mode} short headline.',visual_prompt=f'{mode} solar panel {i}',
+                                         end=40/count) for i in range(count)])
+                def reply(system,message):
+                    if system.startswith('You are an educational video narration editor'):
+                        body=json.loads(message)
+                        self.assertEqual(body['generation_mode'],mode)
+                        self.assertTrue(all(s['target_words']>len(s['text'].split()) for s in body['scenes']))
+                        return {'scenes':[{'id':s.id,'text':expanded,
+                            'visual_prompt':f'{mode} solar cells powering a household appliance {i}'}
+                            for i,s in enumerate(p.scenes)]}
+                    return self.agent_reply({})(system,message)
+                def voice(text,language,path):
+                    seconds=(12.9 if mode=='images' else 4.7) if text==expanded else 1.5
+                    studio.run([self.ff,'-y','-v','error','-f','lavfi','-i',
+                                f'sine=frequency=320:duration={seconds}',str(path)])
+                    return True
+                def motion(job,prompt,style,ratio,out,*args):
+                    self.assertTrue(all(s.text==expanded for s in p.scenes))
+                    shutil.copyfile(self.video,out)
+                jid=self.job(p)
+                with patch.object(studio,'chat',side_effect=reply),patch.object(studio,'voice_asset',side_effect=voice), \
+                     patch.object(studio,'image_asset',side_effect=lambda prompt,style,ratio,out:shutil.copyfile(self.image,out)) as images, \
+                     patch.object(studio,'motion_service'),patch.object(studio,'motion_asset',side_effect=motion) as motions:
+                    result=studio.render(jid,p)
+                self.assertAlmostEqual(result['duration'],40,places=2)
+                output=self.root/'renders'/jid/'final.mp4'
+                stream=next(s for s in studio.probe(output)['streams'] if s['codec_type']=='video')
+                self.assertEqual(int(stream['nb_frames']),1200)
+                self.assertEqual(motions.call_count,8 if mode=='motion' else 1 if mode=='hybrid' else 0)
+                self.assertEqual(images.call_count,3 if mode=='images' else 7 if mode=='hybrid' else 0)
+                self.assertEqual(p.production_notes['narration_fit']['rewrite_attempts'],1)
+                self.assertGreater(p.production_notes['narration_fit']['speech_seconds'],37)
+                self.assertTrue(all(end-start<.7 for start,end in studio.speech_timing.quiet_intervals(self.ff,output)))
 
     def test_failed_image_never_reports_completed_video(self):
         p = studio.Project(scenes=[studio.Scene(text='Hello',visual_prompt='A tree')])
@@ -516,6 +917,30 @@ class StudioTests(unittest.TestCase):
         self.assertEqual(keep['scenes'][0]['end'],keep['scenes'][1]['start'])
         self.assertEqual(cut['scenes'][0]['end'],1)
         self.assertEqual(cut['scenes'][1]['start'],2)
+        # Preserving footage must not stretch subtitles into the silent margins.
+        kept=studio.Project.model_validate(keep)
+        jid=self.job(kept)
+        result=studio.render(jid,kept)
+        srt=(self.root/'renders'/jid/'captions.srt').read_text('utf-8')
+        self.assertIn('00:00:00,200 --> 00:00:01,000',srt)
+        self.assertIn('00:00:02,000 --> 00:00:02,700',srt)
+        # Trimming to silence must produce no caption, not an estimated fallback.
+        silent=kept.model_copy(deep=True)
+        silent.scenes=silent.scenes[:1]
+        silent.scenes[0].start=1.1
+        silent.scenes[0].end=1.8
+        jid=self.job(silent)
+        studio.render(jid,silent)
+        self.assertEqual((self.root/'renders'/jid/'captions.srt').read_text('utf-8'),'')
+        # Speed/trim changes transform source speech boundaries.
+        kept.scenes=kept.scenes[:1]
+        kept.scenes[0].start=.1
+        kept.scenes[0].speed=2
+        jid=self.job(kept)
+        studio.render(jid,kept)
+        self.assertIn('00:00:00,050 --> 00:00:00,450',
+            (self.root/'renders'/jid/'captions.srt').read_text('utf-8'))
+
 
     def test_optimizer_rejects_changed_scene_ids_without_saving(self):
         p=studio.Project(scenes=[studio.Scene(text='Keep the original wording')])
@@ -582,7 +1007,7 @@ class StudioTests(unittest.TestCase):
             {'text':'सूरज से बिजली बनती है।','visual_prompt':'Solar panels in sunlight',
              'slide_title':'सौर ऊर्जा','slide_points':['सूरज की रोशनी','बिजली का उत्पादन']}]})) as chat:
             result=studio.plan(self.job(p),p)
-        self.assertIn('educational presenter explainer',chat.call_args_list[0].args[0])
+        self.assertIn('presenter-led video following the requested purpose',chat.call_args_list[0].args[0])
         self.assertIn('app renders the presenter',chat.call_args_list[0].args[0])
         self.assertEqual(result['scenes'][0]['slide_title'],'सौर ऊर्जा')
         self.assertEqual(result['scenes'][0]['slide_points'],['सूरज की रोशनी','बिजली का उत्पादन'])

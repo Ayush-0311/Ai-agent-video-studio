@@ -133,3 +133,11 @@
   .creation-guide,.guide-settings,.guide-settings details{scroll-margin-top:220px}
   .lp-nav-links{gap:4px}.lp-nav-link{font-size:12px}
 }
+
+/* Import choices follow the source -> new audio -> captions sequence. */
+.import-option-row{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:16px 0;border-bottom:1px solid var(--border, #292930)}
+.import-option-title{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+.import-option-row p,.import-option-note{color:var(--t2);font-size:12px;line-height:1.6;margin-top:6px}
+#upload-target-wrap:not([hidden]){display:flex;align-items:center;gap:12px;font-size:12px;color:var(--t2)}
+.import-output-summary{margin-top:16px;padding:12px 14px;border-radius:10px;background:rgba(139,92,246,.09);font-size:14px;font-weight:600;line-height:1.5}
+@media(max-width:640px){.import-option-row{align-items:flex-start;flex-direction:column;gap:10px}.import-option-row select{max-width:100%}#upload-target-wrap:not([hidden]){flex-wrap:wrap}}

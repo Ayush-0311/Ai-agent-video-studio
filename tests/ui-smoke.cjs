@@ -27,7 +27,30 @@ app.whenReady().then(async () => {
       check(document.querySelector('#view-editor .topbar'),'Original editor not present');
       check(getComputedStyle(document.getElementById('edit-agent-cancel')).display==='none','Idle edit assistant shows Cancel');
       const p={id:'a'.repeat(32),title:'Editor verification',prompt:'Test',language:'en',duration:15,aspect_ratio:'16:9',style:'cinematic',resolution:'720p',captions:true,brand:'',music_id:'',music_volume:.12,denoise:false,color:'natural',scenes:[{id:'b'.repeat(32),text:'One two three four',visual_prompt:'A test scene',asset_id:'c'.repeat(32),media_kind:'video',start:1,end:5,speed:1,mute:false},{id:'d'.repeat(32),text:'A second scene',visual_prompt:'Another test scene',asset_id:'c'.repeat(32),media_kind:'video',start:5,end:8,speed:1,mute:false}]};
+      const timed=structuredClone(p); timed.scenes=timed.scenes.slice(0,1);
+      Object.assign(timed.scenes[0],{start:0,end:8,text:'Hello world',caption_source_text:'Hello world',caption_words:[{text:'Hello',start:2,end:2.5},{text:'world',start:5,end:5.5}]});
+      SmartEditStudio.loadProject(timed);
+      check(document.getElementById('preview-total-duration').textContent==='0:08','Preview duration is not the actual timeline length');
+      for(const [time,text] of [[1,''],[2.2,'Hello'],[3,''],[5.2,'world'],[7,'']]){
+        currentTime=time;updatePlaybackUI();
+        check(document.getElementById('subtitle-display').textContent===text,'Source caption timing wrong at '+time);
+      }
+      check(SmartEditStudio.collect().scenes[0].caption_words.length===2,'Saving drops source speech timestamps');
+      Object.assign(AgentPipeline.state.scenes[0],{text:'Ready. Next sentence.',caption_source_text:'Ready. Next sentence.',caption_words:[{text:'Ready.',start:2,end:3},{text:'Next',start:3.15,end:3.5},{text:'sentence.',start:3.5,end:4}]});
+      currentTime=2.5;updatePlaybackUI();
+      check(document.getElementById('subtitle-display').textContent==='Ready.','Next sentence shown before speech');
+      currentTime=3.3;updatePlaybackUI();
+      check(document.getElementById('subtitle-display').textContent==='Next sentence.','Sentence change delayed');
+      AgentPipeline.state.scenes[0].text='Manually edited';currentTime=3;updatePlaybackUI();
+      check(document.getElementById('subtitle-display').textContent==='Manually edited','Stale speech text overrides edited caption');
+      const storyboard=structuredClone(p);storyboard.scenes=[{...p.scenes[0],asset_id:'',start:0,end:20,text:'Imagine teaching a child to recognize apples. '.repeat(30)}];
+      SmartEditStudio.loadProject(storyboard);goTo('editor');
+      check(document.getElementById('preview-screen').classList.contains('is-storyboard'),'Missing storyboard script layout');
+      check(getComputedStyle(document.getElementById('subtitle-display')).overflowY==='auto','Long storyboard text cannot scroll');
+      check(document.querySelector('.editor-empty').hidden,'Empty placeholder overlaps storyboard script');
+      check(document.getElementById('preview-total-duration').textContent==='0:20','Storyboard duration incorrect');
       SmartEditStudio.loadProject(p);
+      check(!document.getElementById('preview-screen').classList.contains('is-storyboard'),'Storyboard layout leaked into source footage');
       selectClip(2);check(AgentPipeline.state.currentSceneIndex===1,'Selected agent target is incorrect');
       selectClip(1);currentTime=2;await splitClipAtPlayhead();
       check(AgentPipeline.state.scenes.length===3,'Split did not add a scene');
@@ -112,7 +135,7 @@ app.whenReady().then(async () => {
         HTMLMediaElement.prototype.play=async()=>{};
         window.fetch=async(url,options={})=>{
           const route=new URL(url).pathname.replace('/api/studio','');
-          if(route==='/local-health')return new Response(JSON.stringify({production_api:15}));
+          if(route==='/local-health')return new Response(JSON.stringify({production_api:17}));
           if(route==='/voice-settings'&&options.method==='PUT'){preferences=JSON.parse(options.body);return new Response('{}');}
           if(route==='/voice-preview'){previewBody=JSON.parse(options.body);return new Response(JSON.stringify({url:'/api/studio/assets/voice-fixture',voice:{voice:'hi-IN-SwaraNeural',profile_matched:true}}));}
           throw new Error('Unexpected voice preview route '+route);
@@ -136,7 +159,27 @@ app.whenReady().then(async () => {
           check(preferences.voice_engine==='bridge','OmniVoice bridge selection was not saved');
           el('studio-voice-engine').value='neural';el('studio-voice-engine').dispatchEvent(new Event('change'));
           check(!el('studio-voice-profile').disabled&&!el('studio-voice-delivery').disabled,'Named voice controls are disabled');
-          check(SmartEditStudio.fresh().narration_timing==='natural','New videos should follow natural speech timing');
+          check(SmartEditStudio.fresh().narration_timing==='exact','New videos should fit narration to the selected duration');
+          {
+            const names=['gen-video-prompt','gen-video-duration','gen-video-mode','gen-video-lang','gen-video-ratio','edit-ai-scene-type','gen-narration-timing','gen-auto-music'];
+            const saved=Object.fromEntries(names.map(id=>[id,el(id).value]));
+            const reference=el('gen-character-reference').checked;
+            el('edit-ai-scene-type').value='auto';
+            el('gen-video-prompt').value='Generate all images automatically.\\n**0–20 sec:** Visual: A man at night. Voiceover: “चलते रहो।” Text: “KEEP GOING”\\n**20–60 sec:** Visual: The same man at sunrise. Voiceover: “हार मत मानो।” Text: “BELIEVE”\\nUse background music, consistent character appearance, vertical 9:16.';
+            el('gen-video-prompt').value=el('gen-video-prompt').value.replaceAll('\\\\n','\\n');
+            el('gen-video-prompt').dispatchEvent(new Event('input'));
+            const timed=SmartEditStudio.fresh();
+            check(timed.scene_mode==='ready'&&timed.duration===60,'Timed script did not set its duration');
+            check(timed.aspect_ratio==='9:16'&&timed.language==='hi'&&timed.generation_mode==='images','Timed script instructions were lost');
+            check(timed.auto_music==='cinematic'&&timed.character_reference,'Requested music/reference defaults missing');
+            el('gen-auto-music').value='off';el('gen-auto-music').dispatchEvent(new Event('change'));
+            el('gen-character-reference').checked=false;el('gen-character-reference').dispatchEvent(new Event('change'));
+            check(SmartEditStudio.fresh().auto_music==='off'&&!SmartEditStudio.fresh().character_reference,'Explicit choices were overwritten by script hints');
+            for(const id of names)el(id).value=saved[id];
+            el('gen-character-reference').checked=reference;
+            el('gen-video-mode').dispatchEvent(new Event('change'));
+            el('edit-ai-scene-type').dispatchEvent(new Event('change'));
+          }
           el('studio-voice-engine').value='neural';el('studio-voice-engine').dispatchEvent(new Event('change'));
           el('studio-voice-profile').value='auto';el('studio-voice-delivery').value='natural';
         }finally{window.fetch=originalFetch;HTMLMediaElement.prototype.play=originalPlay;}
@@ -148,7 +191,7 @@ app.whenReady().then(async () => {
         calls.push(route);
         let body={};
         if(route==='/health')body={video_available:true,motion_presets:['preview','balanced','quality'],ollama:true,image:true,voice:true,ffmpeg:true};
-        else if(route==='/local-health')body={production_api:15};
+        else if(route==='/local-health')body={production_api:17};
         else if(route==='/plan'){
           planned=JSON.parse(options.body);
           body={id:storyId};
@@ -163,6 +206,8 @@ app.whenReady().then(async () => {
           if(repairNextPreview){
             rendered.scenes[0].text='Sea turtles return to their nesting beach.';
             rendered.scenes[0].visual_prompt='A sea turtle emerging onto its nesting beach, no text.';
+            rendered.scenes[0].slide_title='Nesting beach';
+            rendered.scenes[0].slide_points=['Turtles return to shore'];
             rendered.production_notes={visual_alignment:{status:'reviewed',fingerprint:'fixture-reviewed'}};
             repairNextPreview=false;
           }
@@ -174,12 +219,13 @@ app.whenReady().then(async () => {
         return new Response(JSON.stringify(body),{headers:{'Content-Type':'application/json'}});
       };
       try{
-        document.getElementById('gen-video-prompt').value='A silver robot discovers an underwater city';
+        document.getElementById('gen-video-prompt').value='AI';
         document.getElementById('gen-narration').checked=false;
         document.getElementById('gen-captions').checked=false;
         document.getElementById('gen-video-style').selectedIndex=1;
         await triggerFullVideoGeneration();
         check(planned?.generation_mode==='motion'&&planned.duration===10,'Generate did not plan short motion');
+        check(planned.prompt==='AI','Short topic was rejected or changed');
         check(rendered?.generation_mode==='motion'&&rendered.narration===false&&rendered.captions===false,'Generate lost motion/voice/caption options');
         check(rendered.duration_mode==='target','New generation did not enforce selected duration');
         document.getElementById('gen-narration').dispatchEvent(new Event('change'));
@@ -210,8 +256,10 @@ app.whenReady().then(async () => {
             if(i%3===2)check(payload.style.includes('3D animated character'),'Avatar preference lost');
           }
         }
+        fields('gen-video-prompt').value='Sun';
         calls.length=0;await generateScriptWithAI();
         check(calls.includes('/plan')&&!calls.includes('/render'),'Plan scenes should open storyboard without rendering');
+        check(planned.prompt==='Sun','Short topic did not reach the planner');
         AgentPipeline.state.scenes[0].text='My reviewed narration';
         calls.length=0;await triggerFullVideoGeneration();
         check(!calls.includes('/plan')&&rendered.scenes[0].text==='My reviewed narration','Generate replanned or discarded reviewed Plan scenes edits');
@@ -240,11 +288,13 @@ app.whenReady().then(async () => {
         check(fields('gen-video-duration').max==='180'&&fields('avatar-lipsync-row').hidden,'Avatar kept motion duration limit or misleading lip-sync warning');
         const normalFetch=window.fetch;
         window.fetch=async(url,options)=>new URL(url).pathname.endsWith('/health')?new Response(JSON.stringify({ollama:true,image:true,voice:true,ffmpeg:true,video_available:false})):normalFetch(url,options);
+        repairNextPreview=true;
         calls.length=0;await previewGeneration();
         check(rendered.generation_mode==='avatar'&&rendered.presenter_layout==='pip-left'&&rendered.presenter_character==='maya'&&rendered.presenter_theme==='teal','Explainer preview lost presenter options');
         check(rendered.resolution==='720p','Explainer preview resolution incorrect');
         await triggerFullVideoGeneration();
         check(rendered.generation_mode==='avatar'&&calls.filter(c=>c==='/plan').length===1,'Avatar requires Wan or replans after preview');
+        check(rendered.scenes[0].slide_title==='Nesting beach'&&rendered.scenes[0].slide_points[0]==='Turtles return to shore','Preview slide repair was lost before final generation');
         selectClip(1);fields('slide-title').value='Solar power';fields('slide-points').value='Sunlight becomes electricity';fields('slide-narration').value='Here is how solar panels work.';
         fields('slide-title').closest('form').requestSubmit();
         let savedSlide=SmartEditStudio.collect();
@@ -301,7 +351,7 @@ app.whenReady().then(async () => {
         let transcribed,uploadedProject;
         window.fetch=async(url,options={})=>{
           const route=new URL(url).pathname.replace('/api/studio','');let body={};
-          if(route==='/local-health')body={production_api:15};
+          if(route==='/local-health')body={production_api:17};
           else if(route==='/assets')body={id:'8'.repeat(32),name:'test.mp4',kind:'video',duration:10};
           else if(route.startsWith('/projects/'))uploadedProject=JSON.parse(options.body);
           else if(route==='/transcribe'){transcribed=JSON.parse(options.body);body={id:missingId};}
@@ -316,6 +366,28 @@ app.whenReady().then(async () => {
         check(SmartEditStudio.getProject()?.captions===true,'Transcription result not loaded');
         transcribed=null;await openInEditorDirectly();
         check(transcribed===null&&!SmartEditStudio.getProject().captions,'Direct editor import unexpectedly transcribed');
+        let dubbed;
+        const toggle=document.getElementById('upload-translate');toggle.checked=true;toggle.dispatchEvent(new Event('change'));
+        check(!document.getElementById('upload-target-wrap').hidden,'Dubbing language control hidden');
+        check(document.getElementById('upload-action-label').textContent==='Translate & dub video','Dubbing action label missing');
+        document.getElementById('upload-language').value='en';
+        document.getElementById('upload-target-language').value='hi';
+        window.fetch=async(url,options={})=>{
+          const route=new URL(url).pathname.replace('/api/studio','');let body={};
+          if(route==='/local-health')body={production_api:17};
+          else if(route==='/assets')body={id:'8'.repeat(32),name:'English.mp4',kind:'video',duration:10};
+          else if(route.startsWith('/projects/'))uploadedProject=JSON.parse(options.body);
+          else if(route==='/projects')body=[];
+          else if(route==='/dub'){dubbed=JSON.parse(options.body);body={id:missingId};}
+          else if(route==='/jobs/'+missingId)body={id:missingId,kind:'dub',status:'completed',progress:100,events:[],result:{project:{...uploadedProject,language:'hi',captions:true},timeline:[],duration:10,video_url:'/api/studio/jobs/'+missingId+'/file/video'}};
+          return new Response(JSON.stringify(body));
+        };
+        await startProcessingFlow();
+        check(dubbed?.project.language==='en'&&dubbed.target_language==='hi'&&dubbed.captions,'Dubbing options did not reach backend');
+        check(SmartEditStudio.getProject().language==='hi'&&window.lastVideoDownloadUrl,'Dubbed export not loaded');
+        toggle.checked=false;toggle.dispatchEvent(new Event('change'));
+        check(document.getElementById('upload-target-wrap').hidden,'Dubbing controls remain active on ordinary import');
+
       }finally{window.fetch=originalFetch;}
       try{
         const records=[{kind:'render',status:'completed',progress:100,project_id:p.id,result:{video_url:'/api/studio/jobs/test/file/video'}},{kind:'storyboard',status:'failed',progress:0,error:'Planner unavailable'},{kind:'render',status:'running',progress:40}];
@@ -337,7 +409,7 @@ app.whenReady().then(async () => {
         window.smartEditAsk=async()=> 'hi';
         window.fetch=async(url,options={})=>{
           const route=new URL(url).pathname.replace('/api/studio','');let body={};
-          if(route==='/local-health')body={production_api:15};
+          if(route==='/local-health')body={production_api:17};
           else if(route==='/agents')body=[];
           else if(route==='/agent-run'){
             agentRequest=JSON.parse(options.body);requestProject=structuredClone(agentRequest.project);
@@ -459,6 +531,10 @@ app.whenReady().then(async () => {
             fs.writeFileSync(path.join(output,`avatar-controls-${width}.png`),(await win.webContents.capturePage()).toPNG());
             result.avatarLayouts.push(details);
         }
+        win.setContentSize(1366,900);
+        await win.webContents.executeJavaScript(`openCreationPath('import');handleFileChosen(new File(['test'],'English lesson.mp4',{type:'video/mp4'}));document.getElementById('upload-translate').checked=true;document.getElementById('upload-translate').dispatchEvent(new Event('change'));document.getElementById('upload-options-title').scrollIntoView({block:'center'});document.querySelectorAll('.toast').forEach(e=>e.remove());`);
+        await new Promise(r=>setTimeout(r,180));
+        fs.writeFileSync(path.join(output,'import-dubbing-controls.png'),(await win.webContents.capturePage()).toPNG());
         fs.writeFileSync(path.join(output, 'ui-result.json'), JSON.stringify(result, null, 2));
         console.log(JSON.stringify(result));
         app.exit(0);

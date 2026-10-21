@@ -31,3 +31,38 @@ class ResearchTests(unittest.TestCase):
         self.assertTrue(research.is_explanation('exaplin me machine learing'))
         self.assertTrue(research.is_explanation('AI kya hai'))
         self.assertFalse(research.is_explanation('A puppy plays in a garden'))
+
+    def test_empty_focused_search_falls_back_once_and_skips_ambiguous_pages(self):
+        empty=Mock(); empty.json.return_value={}
+        found=Mock(); found.json.return_value={'query':{'pages':{
+            '1':{'index':1,'title':'Solar','fullurl':'https://en.wikipedia.org/wiki/Solar',
+                 'extract':'Several meanings','pageprops':{'disambiguation':''}},
+            '2':{'index':2,'title':'Solar power','fullurl':'https://en.wikipedia.org/wiki/Solar_power',
+                 'extract':'Light converted to electricity'}}}}
+        with patch.object(research.requests,'get',side_effect=[empty,found]) as get:
+            result=research.lookup('Solar power household appliance example',fallback_query='Solar power')
+        self.assertEqual(get.call_count,2)
+        self.assertEqual(result['status'],'retrieved')
+        self.assertEqual(result['query'],'Solar power')
+        self.assertEqual(len(result['sources']),1)
+        self.assertEqual(get.call_args.kwargs['params']['ppprop'],'disambiguation')
+        self.assertEqual(len(result['attempted_queries']),2)
+
+    def test_provider_and_connection_failures_do_not_repeat_search(self):
+        response=Mock(); response.json.return_value={'error':{'code':'ratelimited'}}
+        for reply in (response,requests.Timeout()):
+            with patch.object(research.requests,'get',side_effect=[reply]) as get:
+                result=research.lookup('Solar electricity',fallback_query='Solar power')
+            self.assertEqual(result['status'],'unavailable')
+            self.assertEqual(result['sources'],[])
+            self.assertEqual(get.call_count,1)
+            self.assertIn('failure_reason',result)
+
+    def test_duplicate_or_blank_queries_do_not_send_extra_requests(self):
+        response=Mock(); response.json.return_value={}
+        with patch.object(research.requests,'get',return_value=response) as get:
+            research.lookup('Explain solar power',fallback_query='solar power')
+            self.assertEqual(get.call_count,1)
+        with patch.object(research.requests,'get') as get:
+            research.lookup(' ')
+        get.assert_not_called()

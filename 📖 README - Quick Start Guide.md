@@ -15,12 +15,12 @@ The original Electron desktop UI is retained. The local Python backend encodes y
 
 1. Upload **colab/SmartEdit_Colab.ipynb** to Google Colab. Choose a T4 GPU runtime.
 2. Add **NGROK_AUTHTOKEN** to Colab Secrets with notebook access, then Run all.
-3. Wait for **SMARTEDIT CONNECTION READY** after actual Hinglish edit-planning, image, Hindi/English voice and motion tests. Full motion testing is enabled by default and can take many minutes; progress appears in the cell.
+3. Wait for **SMARTEDIT CONNECTION READY** after Hinglish edit-planning, image and Hindi/English voice checks. Motion testing is optional and disabled by default; the first motion request tests inference. Progress appears in the cell.
 4. Double-click **🚀 2. LAUNCH SmartEdit.bat**. This checks the local installation, starts the backend hidden, and opens the original desktop app.
 5. Copy the complete **ONE-PASTE CONNECTION LINK** from Colab into the app's Colab URL box and click **Connect & Test**. A new Colab session requires its new link. Connection is not automatic until this step.
 6. Select **AI motion**, enter your topic, choose a visual style, and start with **10 seconds**. For animated characters choose **3D animation / avatar**. Narration and subtitles are optional. Click **Generate video**, then preview/download the MP4 or edit the scenes. Keep the PC and Colab running until completion.
 
-Models are selected automatically for GPU/RAM: a free T4 uses Qwen3.5 9B, SDXL and Wan2.1 1.3B. Larger supported runtimes can use Qwen3.5 27B, FLUX.2 Klein 4B and Wan2.2 5B. See **COLAB_SETUP_GUIDE.md** for the exact thresholds, overrides and run steps. Motion is 480p-class or 720p-class and resized for export; exact reference quality, character identity and lip-sync are not guaranteed. This update passed offline tests; actual GPU inference must pass in your Colab session. The startup sample is saved as `/content/smartedit-motion-check.mp4` for visual review.
+Models are selected automatically for GPU/RAM: a free T4 uses Qwen3.5 9B, SDXL and Wan2.1 1.3B. Larger supported runtimes can use Qwen3.5 27B, FLUX.2 Klein 4B and Wan2.2 5B. See **COLAB_SETUP_GUIDE.md** for the exact thresholds, overrides and run steps. Motion is 480p-class or 720p-class and resized for export; exact reference quality, character identity and lip-sync are not guaranteed. This update passed offline tests; actual GPU inference must pass in your Colab session. When the optional motion startup test is enabled, its sample is saved as `/content/smartedit-motion-check.mp4` for visual review.
 
 After updating: let active jobs finish, relaunch the app, and run the updated notebook in a fresh Colab GPU session. The launcher replaces this project's idle stale backend automatically. Reconnect with the new Colab link.
 

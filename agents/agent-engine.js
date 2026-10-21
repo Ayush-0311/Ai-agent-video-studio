@@ -60,7 +60,7 @@ async function pollAgentStatus() {
     // Log runtime info to console once
     if (window.AgentPipeline && data.runtime) {
       var rt = data.runtime;
-      AgentPipeline.logAgentAction('backend', 'Backend Status', 'Online ✓ | Ollama: ' + rt.ollama_model + ' | FFmpeg: ' + (rt.ffmpeg_available ? 'yes' : 'not found') + ' | gTTS: ' + (rt.gtts_available ? 'yes' : 'no'), 'g');
+      AgentPipeline.logAgentAction('backend', 'Backend Status', 'Online ✓ | Ollama: ' + rt.ollama_model + ' | FFmpeg: ' + (rt.ffmpeg_available ? 'yes' : 'not found') + ' | Voice: ' + (rt.voice_engine || 'unconfigured') + (rt.voice_configured ? ' (configured)' : ' (needs setup)'), 'g');
     }
   } catch (e) {
     var statusDot2 = document.getElementById('agent-backend-dot');

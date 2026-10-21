@@ -97,3 +97,31 @@ class NarrationTests(unittest.TestCase):
 
 if __name__=='__main__':
     unittest.main()
+
+
+class SharedVoiceRoutingTests(unittest.TestCase):
+    def test_legacy_generation_uses_shared_hindi_and_english_voice(self):
+        with tempfile.TemporaryDirectory() as folder:
+            for language,text in [('hi','नमस्ते। यह हिंदी आवाज़ की जाँच है।'),('en','Hello. This is a voice check.')]:
+                output=Path(folder)/language/'speech.mp3'
+                with patch.object(studio,'voice_asset',return_value=True) as shared:
+                    self.assertTrue(main.synthesize_voice_file(text,language,output))
+                    shared.assert_called_once_with(text,language,output)
+                    self.assertTrue(output.parent.exists())
+
+    def test_shared_voice_failure_does_not_silently_switch_provider(self):
+        with tempfile.TemporaryDirectory() as folder, patch.object(studio,'voice_asset',side_effect=RuntimeError('Bridge offline')):
+            with self.assertRaisesRegex(RuntimeError,'Bridge offline'):
+                main.synthesize_voice_file('नमस्ते','hi',Path(folder)/'speech.mp3')
+
+    def test_voice_agent_reports_bridge_and_preserves_hindi(self):
+        with tempfile.TemporaryDirectory() as folder, patch.object(main,'AUDIO_OUT_DIR',Path(folder)), patch.object(studio,'settings',return_value=studio.Settings()):
+            def voice(text,language,out):
+                self.assertEqual(language,'hi')
+                out.write_bytes(b'test-audio')
+                return True
+            with patch.object(studio,'voice_asset',side_effect=voice):
+                result=main.synthesize_voice(main.VoiceSynthesisRequest(text='नमस्ते',language='hi'))
+            self.assertEqual(result['engine'],'colab-bridge')
+            self.assertEqual(result['language'],'hi')
+            self.assertFalse(list(Path(folder).glob('*.mp3')))

@@ -524,9 +524,9 @@ def main():
     @bridge.get('/health')
     def health():
         return {'image_ready': state['image_tested'], 'voice_ready': state['voice_tested'],
-                'image_model': visual_profile['model'], 'image_profile':visual_profile,
+                'image_model': visual_profile['model'], 'image_profile':visual_profile, 'reference_images':True,
                 'voice_engine': voice_service.mode, 'voice_providers': dict(voice_service.providers),
-                'voice_model_license': 'CC-BY-NC' if voice_service.mode == 'omnivoice' else 'provider-specific', 'bridge_version': 9,
+                'voice_model_license': 'CC-BY-NC' if voice_service.mode == 'omnivoice' else 'provider-specific', 'bridge_version': 10,
                 'presenter_available': presenter_ready, 'presenter_tested': state['presenter_tested'], 'edit_planner_ready':state['planner_tested'],
                 'presenter_setup_error': presenter_setup_error,
                 'motion_presets': ['preview', 'balanced', 'quality'],
@@ -562,11 +562,23 @@ def main():
         height: int = Field(768, ge=256, le=1536)
         seed: int = Field(42, ge=0, le=4294967295)
         steps: int = Field(40, ge=4, le=50)
+        reference_image: str = Field('',max_length=8000000)
 
     @bridge.post('/image')
     def image(payload: ImageRequest):
         if payload.width*payload.height > 1536*768:
             raise HTTPException(400, 'Use an image bucket near one megapixel to fit the selected GPU profile.')
+        reference=None
+        if payload.reference_image:
+            try:
+                from PIL import Image
+                reference=Image.open(io.BytesIO(base64.b64decode(payload.reference_image,validate=True)))
+                if reference.width*reference.height > 1536*1536:
+                    raise ValueError('Reference too large')
+                reference.load()
+                reference=reference.convert('RGB')
+            except Exception:
+                raise HTTPException(400,'Invalid character reference image.')
         with inference_lock:
             state['motion_pipe'] = None
             release_model_memory(torch)
@@ -578,6 +590,10 @@ def main():
                     json={'model': model['name'], 'keep_alive': 0}, timeout=120)
                 unload.raise_for_status()
             try:
+                if state['pipe'] is not None and visual_profile['family']!='flux' and (
+                    bool(getattr(state['pipe'],'_smartedit_reference',False)) != bool(reference)):
+                    state['pipe']=None
+                    release_model_memory(torch)
                 if state['pipe'] is None:
                     release_model_memory(torch)
                     model_folder = download_model_serially(visual_profile['model'], visual_profile['family'],
@@ -591,6 +607,10 @@ def main():
                             variant='fp16', use_safetensors=True, low_cpu_mem_usage=True, local_files_only=True)
                         pipe.scheduler = DPMSolverMultistepScheduler.from_config(
                             pipe.scheduler.config, algorithm_type='dpmsolver++', use_karras_sigmas=True)
+                        if reference is not None:
+                            pipe.load_ip_adapter('h94/IP-Adapter',subfolder='sdxl_models',weight_name='ip-adapter_sdxl.bin')
+                            pipe.set_ip_adapter_scale(.65)
+                            pipe._smartedit_reference=True
                     state['pipe'] = pipe
                     if profile['offload'] == 'sequential':
                         pipe.enable_sequential_cpu_offload()
@@ -602,7 +622,9 @@ def main():
                         pipe.enable_vae_slicing()
                         pipe.enable_vae_tiling()
                     del pipe
-                result = state['pipe'](**image_options(visual_profile,payload.prompt,payload.width,payload.height,payload.steps),
+                reference_args=({'image':reference} if visual_profile['family']=='flux' else
+                                {'ip_adapter_image':reference}) if reference is not None else {}
+                result = state['pipe'](**image_options(visual_profile,payload.prompt,payload.width,payload.height,payload.steps),**reference_args,
                     generator=torch.Generator('cpu').manual_seed(payload.seed)).images[0]
                 import numpy as np
                 pixels = np.asarray(result)

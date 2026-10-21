@@ -54,12 +54,26 @@ class ProductionAgentsTests(unittest.TestCase):
             direct_scenes(self.project,self.scenes,chat,Mock(),Mock(side_effect=RuntimeError('Cancelled')))
         chat.assert_not_called()
 
+    def test_hybrid_director_gets_selected_settings_and_per_scene_media(self):
+        self.project.generation_mode='hybrid'
+        self.project.language='hi'
+        self.project.aspect_ratio='9:16'
+        self.scenes[0].speed=2
+        chat=Mock(return_value=self.direction)
+        direct_scenes(self.project,self.scenes,chat,Mock(),Mock())
+        request=json.loads(chat.call_args.args[1])
+        self.assertEqual(request['selected_settings']['aspect_ratio'],'9:16')
+        self.assertEqual(request['selected_settings']['language'],'hi')
+        self.assertEqual([s['visual_kind'] for s in request['scenes']],['motion','image'])
+        self.assertEqual(request['scenes'][0]['seconds'],2.5)
+
     def test_failed_director_does_not_overwrite_existing_project(self):
         p=self.project.model_copy(update={'scenes':self.scenes,'title':'Saved title'},deep=True)
         before=p.model_dump()
         draft={'title':'New title','scenes':[{'text':'Pilot lands','visual_prompt':'A pilot lands'},
                                            {'text':'A quiet landscape','visual_prompt':'A moon landscape'}]}
         with patch.object(studio,'event'),patch.object(studio,'checkpoint'), \
+             patch.object(studio.video_brief,'analyze',return_value=studio.video_brief.fallback(p)), \
              patch.object(studio,'chat',side_effect=[draft,{'shots':[]},{'shots':[]}]),patch.object(studio,'write_json') as save:
             with self.assertRaises(ValueError):
                 studio.plan('test',p)

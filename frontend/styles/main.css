@@ -441,6 +441,9 @@ img{display:block;max-width:100%}
 .editor-brand{position:absolute;top:12px;right:16px;max-width:60%;font-weight:700;color:white;text-shadow:0 1px 3px black;z-index:4;pointer-events:none}
 #view-editor .subtitle-bar{z-index:4;pointer-events:none;bottom:5%;padding:0 5%}
 #view-editor .subtitle-text{font-size:clamp(14px,2vw,28px)}
+#view-editor .is-storyboard .subtitle-bar{top:52px;bottom:20px;align-items:center;justify-content:center}
+#view-editor .is-storyboard .subtitle-text{font-size:16px;line-height:1.6;text-align:left;max-height:100%;overflow-y:auto;box-sizing:border-box;pointer-events:auto;padding:16px 20px;white-space:pre-wrap}
+#view-editor .editor-preview-note{max-width:calc(100% - 20px);box-sizing:border-box}
 .editor-timeline-empty{font-size:12px;line-height:40px;color:var(--t3);padding-left:15px}
 #video-edit-toolbar{max-height:92px;overflow:auto}
 .tl-clip{min-height:28px}
