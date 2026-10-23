@@ -36,6 +36,7 @@ from pydantic import BaseModel, Field, model_validator
 
 DATA = Path(__file__).resolve().parent / 'studio-data'
 LOCK = threading.RLock()
+PLANNER_RUNTIME = {}
 PREVIEW_LOCKS = {}
 POOL = ThreadPoolExecutor(max_workers=1, thread_name_prefix='studio')
 JOBS = {}
@@ -239,6 +240,42 @@ def connection_failure(exc, label):
     return {'status': status, 'http_status': code, 'message': message}
 
 
+def safe_planner_diagnostic(value):
+    """Show a bounded model-runner error without exposing private tunnel URLs or tokens."""
+    text = str(value or '').strip()
+    text = re.sub(r'(?i)Bearer\s+\S+', 'Bearer [redacted]', text)
+    text = re.sub(r'https?://[^\s\"\']+', '[remote endpoint]', text)
+    text = re.sub(r'(?i)(?:ngrok|auth)[-_ ]?(?:token|authtoken)\s*[:=]\s*\S+', '[credential redacted]', text)
+    return text[:500]
+
+
+def response_detail(response):
+    try:
+        payload = response.json()
+    except (ValueError, AttributeError):
+        payload = {}
+    if isinstance(payload, dict):
+        detail = payload.get('detail') or payload.get('error') or payload.get('message')
+        if detail:
+            return safe_planner_diagnostic(detail)
+    return safe_planner_diagnostic(getattr(response, 'text', ''))
+
+
+def planner_identity(cfg):
+    return hashlib.sha256((cfg.ollama_url.rstrip('/')+'\0'+cfg.model).encode('utf-8')).hexdigest()
+
+
+def remember_planner(cfg, ready, error=''):
+    with LOCK:
+        PLANNER_RUNTIME[planner_identity(cfg)] = {
+            'ready': bool(ready), 'error': safe_planner_diagnostic(error) if error else ''}
+
+
+def planner_runtime(cfg):
+    with LOCK:
+        return dict(PLANNER_RUNTIME.get(planner_identity(cfg), {}))
+
+
 def chat(system, message, temperature=.4, timeout=600, think=True, response_schema=None):
     cfg = settings()
     options = {'temperature':temperature,'num_ctx':8192,'num_predict':6000}
@@ -254,15 +291,21 @@ def chat(system, message, temperature=.4, timeout=600, think=True, response_sche
                   'think': think, 'keep_alive': 0,
                   'options': options}, timeout=timeout)
     except requests.Timeout:
+        remember_planner(cfg, False, 'Planner inference timed out while waiting for Colab.')
         raise RuntimeError('The Colab language planner timed out. Wait for its current task to finish; '
                            'if it remains unresponsive, rerun the Colab cell and reconnect its current link.') from None
     except requests.ConnectionError:
+        remember_planner(cfg, False, 'Colab planner connection was lost during inference.')
         raise RuntimeError('The Colab language planner is unreachable. Check the running Colab cell and reconnect its current link.') from None
-    if response.status_code in (502, 503, 504):
-        raise RuntimeError(f'The Colab language planner is unavailable (HTTP {response.status_code}). '
-                           'Voice readiness does not confirm planner readiness. Check the Colab cell; '
-                           'if the planner has stopped, rerun it and reconnect before retrying.')
+    if 500 <= response.status_code < 600:
+        diagnostic = response_detail(response)
+        remember_planner(cfg, False, diagnostic or f'Planner returned HTTP {response.status_code}.')
+        suffix = f' Colab diagnostic: {diagnostic}' if diagnostic else ''
+        raise RuntimeError(f'The Colab language planner is unavailable (HTTP {response.status_code}).{suffix} '
+                           'Planner inference failed even though the bridge may be connected. '
+                           'Use Connect & Test to run a planner recovery check; if it still fails, inspect the Colab Ollama log.')
     response.raise_for_status()
+    remember_planner(cfg, True)
     reply = response.json()
     if reply.get('done_reason') == 'length':
         raise ValueError('The language model reached its output limit before finishing the response.')
@@ -1590,12 +1633,14 @@ def install(app, env):
     def health():
         cfg = settings()
         result = {'ffmpeg': env['ffmpeg_available'](), 'models': [], 'ollama': False, 'image': False, 'voice': False,
-                  'video_available': False, 'video_tested': False, 'bridge_connected': False, 'errors': [], 'services': {}}
+                  'planner_ready': False, 'planner_error': '', 'video_available': False, 'video_tested': False,
+                  'bridge_connected': False, 'errors': [], 'services': {}}
         try:
             response = requests.get(cfg.ollama_url.rstrip('/')+'/api/tags', headers=headers(cfg), timeout=10)
             response.raise_for_status()
             result['models'] = [x['name'] for x in response.json()['models']]
             result['ollama'] = cfg.model in result['models']
+            result['planner_ready'] = result['ollama']
             result['services']['language_model'] = {'status': 'ready' if result['ollama'] else 'model_missing'}
             if not result['ollama']:
                 result['errors'].append(f'Selected model {cfg.model} is not installed on the Ollama server.')
@@ -1617,6 +1662,53 @@ def install(app, env):
                 result['video_tested'] = data.get('video_tested') is True
                 result['motion_presets'] = data.get('motion_presets', [])
                 result['video_profile'] = data.get('video_profile', {})
+                remote_planner_known = isinstance(data.get('edit_planner_ready'), bool)
+                local_planner = planner_runtime(cfg)
+                local_failure = local_planner.get('ready') is False
+                local_success = local_planner.get('ready') is True
+                if not result['ollama']:
+                    # A missing selected model is already the actionable diagnosis;
+                    # do not hide it behind planner readiness from the bridge.
+                    result['planner_ready'] = False
+                elif remote_planner_known or local_failure or local_success:
+                    remote_ready = data['edit_planner_ready'] if remote_planner_known else local_success
+                    result['planner_ready'] = result['ollama'] and remote_ready
+                    result['planner_error'] = (local_planner.get('error') if local_failure else
+                        safe_planner_diagnostic(data.get('planner_error', '')))
+                    if result['ollama'] and (not result['planner_ready'] or local_failure):
+                        result['planner_ready'] = False
+                        try:
+                            recovery = requests.post(cfg.image_url.rstrip('/')+'/planner/check',
+                                headers=headers(cfg), timeout=130)
+                            if recovery.status_code == 200 and recovery.json().get('planner_ready') is True:
+                                result['planner_ready'] = True
+                                result['planner_error'] = ''
+                                remember_planner(cfg, True)
+                            elif recovery.status_code == 404:
+                                result['planner_error'] = ('The connected Colab cell cannot run planner recovery. '
+                                    'Upload and run the latest SmartEdit notebook, then reconnect.')
+                                remember_planner(cfg, False, result['planner_error'])
+                            else:
+                                diagnostic = response_detail(recovery)
+                                result['planner_error'] = diagnostic or result['planner_error']
+                                remember_planner(cfg, False, result['planner_error'])
+                        except Exception as exc:
+                            failure = connection_failure(exc, 'Colab planner recovery check')
+                            result['planner_error'] = failure['message']
+                            remember_planner(cfg, False, result['planner_error'])
+                    if not result['planner_ready']:
+                        result['planner_error'] = result['planner_error'] or (
+                            'Colab lists the model, but its planner inference check failed. Inspect the Colab Ollama log.')
+                        result['errors'].append(result['planner_error'])
+                    result['services']['language_model'] = {
+                        'status': 'ready' if result['planner_ready'] else 'inference_failed',
+                        **({'message': result['planner_error']} if result['planner_error'] else {})}
+                elif result['ollama']:
+                    result['planner_ready'] = False
+                    result['planner_error'] = 'This Colab notebook does not report planner readiness. Upload and run the latest SmartEdit notebook, then reconnect.'
+                    result['services']['language_model'] = {'status':'planner_check_unsupported',
+                        'message':result['planner_error']}
+                    result['errors'].append(result['planner_error'])
                 result['services']['bridge'] = {'status': 'ready' if result['image'] and result['voice'] else 'check_failed'}
                 if not result['image']:
                     result['errors'].append('Image startup check has not passed. Check the Colab cell output.')
@@ -1627,6 +1719,7 @@ def install(app, env):
                 result['services']['bridge'] = failure
                 result['errors'].append(failure['message'])
         else:
+            result['planner_ready'] = result['ollama']
             result['services']['bridge'] = {'status': 'not_configured'}
             result['errors'].append('Image / motion / voice bridge URL is missing. Paste the complete ONE-PASTE connection link.')
         if cfg.voice_engine == 'neural':
@@ -1636,6 +1729,8 @@ def install(app, env):
                 'message':'Direct neural voice uses Internet on this PC. Use Hear voice sample to verify synthesis.'}
         else:
             result['voice_provider'] = 'colab_bridge'
+        if result['planner_ready'] and result['ollama']:
+            result['services']['language_model'] = {'status':'ready'}
         return result
 
     @app.get('/api/studio/projects')

@@ -48,3 +48,16 @@ class ChatResponseTests(unittest.TestCase):
                     studio.chat('system','message')
                 self.assertIn('Colab language planner',str(caught.exception))
                 self.assertNotIn('private-host',str(caught.exception))
+
+    def test_503_includes_bounded_runner_diagnostic_without_private_values(self):
+        cfg=SimpleNamespace(ollama_url='http://private-host',model='test')
+        response=Mock(status_code=503,text='')
+        response.json.return_value={'error':'model runner has terminated; Bearer private-token at https://private-tunnel.ngrok-free.dev/api/chat'}
+        with patch.object(studio,'settings',return_value=cfg),patch.object(studio,'headers',return_value={}), \
+             patch.object(studio.requests,'post',return_value=response):
+            with self.assertRaises(RuntimeError) as caught:
+                studio.chat('system','message')
+        message=str(caught.exception)
+        self.assertIn('model runner has terminated',message)
+        self.assertNotIn('private-token',message)
+        self.assertNotIn('ngrok-free.dev',message)

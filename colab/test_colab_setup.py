@@ -14,7 +14,7 @@ from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
 import SmartEdit_Colab as setup
 
-from SmartEdit_Colab import bounded_chat_options, select_profile, image_profile, image_options, validate_planner_probe
+from SmartEdit_Colab import bounded_chat_options, select_profile, image_profile, image_options, validate_planner_probe, record_planner_result
 
 
 class ColabSetupTests(unittest.TestCase):
@@ -283,6 +283,20 @@ class ColabSetupTests(unittest.TestCase):
                         '{"operations":[{"op":"clip","target":"all","changes":{"volume":50}}]}'):
             with self.subTest(content=content),self.assertRaises(RuntimeError):
                 validate_planner_probe(content)
+
+    def test_planner_readiness_tracks_live_inference_and_redacts_diagnostics(self):
+        state={'planner_tested':True,'planner_error':'','planner_retry_after':0}
+        secret='private-test-token'
+        self.assertFalse(record_planner_result(state,503,
+            'model runner terminated; Bearer '+secret+' https://random.ngrok-free.dev/api/chat',secret))
+        self.assertFalse(state['planner_tested'])
+        self.assertIn('model runner terminated',state['planner_error'])
+        self.assertNotIn(secret,state['planner_error'])
+        self.assertNotIn('ngrok-free.dev',state['planner_error'])
+        self.assertGreater(state['planner_retry_after'],0)
+        self.assertTrue(record_planner_result(state,200,'{}',secret))
+        self.assertEqual(state['planner_error'],'')
+        self.assertEqual(state['planner_retry_after'],0)
 
     def test_context_and_generation_cannot_overallocate(self):
         options = {'num_ctx': 262144, 'num_predict': -1, 'temperature': 0.6}

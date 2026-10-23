@@ -59,8 +59,9 @@ class ConnectionTests(unittest.TestCase):
         return result.json()
 
     def test_authenticated_ready_bridge(self):
-        result = self.health([response({'models':[{'name':'test-model'}]}), response({'image_ready':True,'voice_ready':True,'video_available':True,'video_tested':True})])
+        result = self.health([response({'models':[{'name':'test-model'}]}), response({'image_ready':True,'voice_ready':True,'edit_planner_ready':True,'video_available':True,'video_tested':True})])
         self.assertTrue(all(result[key] for key in ('ollama','bridge_connected','image','voice','video_available','video_tested')))
+        self.assertTrue(result['planner_ready'])
         self.assertEqual(result['errors'], [])
 
     def test_rejected_token_is_not_reported_as_offline_or_gpu_failure(self):
@@ -82,7 +83,7 @@ class ConnectionTests(unittest.TestCase):
         self.assertEqual(result['services']['bridge']['status'], 'tunnel_offline')
 
     def test_partial_startup_and_missing_model(self):
-        result = self.health([response({'models':[{'name':'other-model'}]}), response({'image_ready':False,'voice_ready':False,'video_available':False})])
+        result = self.health([response({'models':[{'name':'other-model'}]}), response({'image_ready':False,'voice_ready':False,'edit_planner_ready':False,'video_available':False})])
         self.assertTrue(result['bridge_connected'])
         self.assertFalse(result['ollama'])
         self.assertEqual(result['services']['language_model']['status'], 'model_missing')

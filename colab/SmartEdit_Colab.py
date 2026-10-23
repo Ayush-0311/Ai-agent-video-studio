@@ -16,6 +16,7 @@ import io
 import json
 import os
 from pathlib import Path
+import re
 import secrets
 import shutil
 import subprocess
@@ -463,6 +464,29 @@ def validate_planner_probe(content):
         raise RuntimeError('Language model failed the Hinglish JSON edit-planning test. Retry a fresh runtime.') from exc
 
 
+def planner_diagnostic(value, secret=''):
+    """Keep useful Ollama runner errors while removing private tunnel credentials."""
+    text = str(value or '').strip()
+    if secret:
+        text = text.replace(secret, '[redacted]')
+    text = re.sub(r'(?i)Bearer\s+\S+', 'Bearer [redacted]', text)
+    text = re.sub(r'https?://[^\s\"\']+', '[remote endpoint]', text)
+    return text[:500] or 'No diagnostic details were returned by Ollama.'
+
+
+def record_planner_result(state, status_code, body, secret=''):
+    """Keep live planner readiness tied to inference responses, not /api/tags."""
+    if status_code == 200:
+        state['planner_tested'] = True
+        state['planner_error'] = ''
+        state['planner_retry_after'] = 0
+    else:
+        state['planner_tested'] = False
+        state['planner_error'] = f'Ollama returned HTTP {status_code}: {planner_diagnostic(body, secret)}'
+        state['planner_retry_after'] = time.time() + 30
+    return state['planner_tested']
+
+
 class VideoJobs:
     """Bounded, idempotent GPU jobs; polling and cancellation never wait for inference."""
     def __init__(self, generate, label="Motion"):
@@ -554,7 +578,7 @@ def bounded_chat_options(options, context_length):
 
 
 def main():
-    print('SmartEdit Colab setup: 2026-10-14 / OmniVoice narration', flush=True)
+    print('SmartEdit Colab setup: 2026-10-24 / live planner readiness and recovery', flush=True)
     configure_low_memory_downloads()
     subprocess.run(['nvidia-smi', '--query-gpu=name,memory.total', '--format=csv'], check=True)
     ngrok_token = read_ngrok_token()
@@ -627,7 +651,7 @@ def main():
     run_setup_step(['ollama', 'pull', MODEL], '/content/smartedit-install.log', 'Downloading planner model '+MODEL)
     bridge_token = secrets.token_urlsafe(32)
     inference_lock = threading.Lock()
-    state = {'motion_pipe': None, 'motion_embeddings': {}, 'pipe': None, 'image_tested': False, 'voice_tested': False, 'video_tested': False, 'planner_tested': False, 'presenter_tested': False}
+    state = {'motion_pipe': None, 'motion_embeddings': {}, 'pipe': None, 'image_tested': False, 'voice_tested': False, 'video_tested': False, 'planner_tested': False, 'planner_error': '', 'planner_retry_after': 0, 'presenter_tested': False}
     voice_runtime = {'__name__': 'smartedit_voice_runtime'}
     exec(compile(VOICE_SUPPORT_SOURCE, 'voice_support.py', 'exec'), voice_runtime)
     voice_worker = Path('/content/smartedit-voice-worker.py')
@@ -670,13 +694,55 @@ def main():
                 'voice_engine': voice_service.mode, 'voice_providers': dict(voice_service.providers),
                 'voice_model_license': 'CC-BY-NC' if voice_service.mode == 'omnivoice' else 'provider-specific', 'bridge_version': 10,
                 'presenter_available': presenter_ready, 'presenter_tested': state['presenter_tested'], 'edit_planner_ready':state['planner_tested'],
-                'presenter_setup_error': presenter_setup_error,
+                'planner_error': state['planner_error'], 'presenter_setup_error': presenter_setup_error,
                 'motion_presets': ['preview', 'balanced', 'quality'],
                 'video_available': video_profile['available'], 'video_tested': state['video_tested'],
                 'video_profile': video_profile,
                 'profile': profile, 'system_memory_gb': round(ram_gb, 1),
                 'ollama_model': MODEL, 'gpu': torch.cuda.get_device_name(0),
                 'gpu_memory_gb': round(torch.cuda.get_device_properties(0).total_memory/1024**3,1)}
+
+    def run_planner_probe():
+        """Verify real chat inference, not just that Ollama lists the model."""
+        with inference_lock:
+            state['motion_pipe'] = None
+            state['motion_embeddings'] = {}
+            state['pipe'] = None
+            release_model_memory(torch)
+            response = requests.post('http://127.0.0.1:11434/api/chat', json={
+                'model': MODEL, 'messages': [
+                    {'role':'system','content':'Translate editing requests into JSON. Return only {"operations":[{"op":"clip","target":"all","changes":{"volume":NUMBER}}]}. Volume is a fraction from 0 to 1.'},
+                    {'role':'user','content':'Poori video ki awaaz 50% kar do.'}],
+                'format':'json', 'think':False, 'keep_alive':0,
+                'options':{'num_ctx':min(profile['context_length'],4096),'num_predict':256,'temperature':0}},
+                timeout=120)
+            if response.status_code != 200:
+                state['planner_tested'] = False
+                state['planner_error'] = f'Ollama returned HTTP {response.status_code}: {planner_diagnostic(response.text, bridge_token)}'
+                raise RuntimeError(state['planner_error'])
+            try:
+                content = response.json().get('message',{}).get('content','')
+                validate_planner_probe(content)
+            except Exception as exc:
+                state['planner_tested'] = False
+                state['planner_error'] = planner_diagnostic(exc, bridge_token)
+                raise RuntimeError(state['planner_error']) from None
+            state['planner_tested'] = True
+            state['planner_error'] = ''
+            state['planner_retry_after'] = 0
+
+    @bridge.post('/planner/check')
+    def planner_check():
+        if time.time() < state['planner_retry_after']:
+            raise HTTPException(503, state['planner_error'] or 'Planner recovery check is cooling down. Retry shortly.')
+        try:
+            run_planner_probe()
+        except Exception as exc:
+            state['planner_tested'] = False
+            state['planner_error'] = planner_diagnostic(exc, bridge_token)
+            state['planner_retry_after'] = time.time() + 30
+            raise HTTPException(503, state['planner_error']) from None
+        return {'planner_ready': True}
 
     @bridge.get('/api/tags')
     def tags():
@@ -695,7 +761,19 @@ def main():
                 raise HTTPException(400, f'This bridge is configured for {MODEL}. Change MODEL in the Colab setup to use another model.')
             payload.update(stream=False, keep_alive=0)
             payload['options'] = bounded_chat_options(payload.get('options'), profile['context_length'])
-            response = requests.post('http://127.0.0.1:11434/api/chat', json=payload, timeout=600)
+            try:
+                response = requests.post('http://127.0.0.1:11434/api/chat', json=payload, timeout=600)
+            except requests.Timeout:
+                state['planner_tested'] = False
+                state['planner_error'] = 'Ollama planner inference timed out. Check the Colab Ollama log and GPU memory.'
+                state['planner_retry_after'] = time.time() + 30
+                raise HTTPException(504, state['planner_error']) from None
+            except requests.RequestException as exc:
+                state['planner_tested'] = False
+                state['planner_error'] = planner_diagnostic(exc, bridge_token)
+                state['planner_retry_after'] = time.time() + 30
+                raise HTTPException(502, 'Colab could not reach Ollama: '+state['planner_error']) from None
+            record_planner_result(state, response.status_code, response.text, bridge_token)
             return Response(response.content, status_code=response.status_code, media_type='application/json')
 
     class ImageRequest(BaseModel):
@@ -1060,15 +1138,7 @@ def main():
 
     # Do not advertise a connection as ready before its actual services work.
     print('Testing Hinglish edit planning, Hindi/English voice, and the selected image model. First downloads take time…', flush=True)
-    language_test = chat({'model': MODEL, 'messages': [
-        {'role':'system','content':'Translate editing requests into JSON. Return only {"operations":[{"op":"clip","target":"all","changes":{"volume":NUMBER}}]}. Volume is a fraction from 0 to 1.'},
-        {'role':'user','content':'Poori video ki awaaz 50% kar do.'}],
-        'format':'json', 'think':False, 'options':{'num_ctx':4096,'num_predict':256,'temperature':0}})
-    if language_test.status_code != 200:
-        raise RuntimeError('Ollama startup inference failed. Check the Ollama log above.')
-    language_result = json.loads(language_test.body)
-    validate_planner_probe(language_result.get('message',{}).get('content',''))
-    state['planner_tested'] = True
+    run_planner_probe()
     for language, text in [('hi', 'नमस्ते। आपकी वीडियो की आवाज़ तैयार है।'),
                            ('en', 'Your video narration is ready.')]:
         data, actual_voice, provider = synthesize_voice(

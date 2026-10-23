@@ -295,8 +295,16 @@
         ids.forEach(id => { if ($(id))
             $(id).disabled = false; });
     } }
+    async function requirePlannerReady() {
+        const health = await api('/health');
+        const connectionError = Object.values(health.services || {}).find(s => ['auth_required', 'tunnel_offline', 'network_error', 'timeout', 'invalid_response', 'http_error'].includes(s.status));
+        if (connectionError) throw new Error(connectionError.message);
+        if (!health.ollama) throw new Error('The planning model is not connected. Use Connect & Test before generating.');
+        if (health.planner_ready === false) throw new Error(health.planner_error || 'Colab planner inference is not ready. Use Connect & Test to check or recover it.');
+        return health;
+    }
     async function planOnly(p = fresh()) { if (!p.prompt.trim())
-        throw new Error('Write a video idea or script first.'); const job = await watch(await api('/plan', 'POST', p)); loadProject(job.result);
+        throw new Error('Write a video idea or script first.'); await requirePlannerReady(); const job = await watch(await api('/plan', 'POST', p)); loadProject(job.result);
         plannedKey = briefKey(p); plannedProjectId = project.id; return job.result; }
     window.triggerFullVideoGeneration = protect(() => task(async () => {
         const desired = fresh();
@@ -312,6 +320,7 @@
         if (motion && !health.video_available)
             throw new Error('Run the updated SmartEdit Colab notebook on a T4 GPU and reconnect. This bridge does not support AI motion yet.');
         if (!health.ollama) throw new Error('The planning model is not connected. Use Connect & Test before generating.');
+        if (health.planner_ready === false) throw new Error(health.planner_error || 'Colab planner inference is not ready. Use Connect & Test to check or recover it.');
         if (!health.ffmpeg) throw new Error('Video encoder is unavailable. Relaunch SmartEdit to check the backend setup.');
         if (desired.generation_mode !== 'motion' && !health.image)
             throw new Error('The image model is not ready. Finish Colab setup and reconnect with Connect & Test.');
@@ -347,7 +356,7 @@
     window.previewGeneration = protect(() => task(async () => {
         await requirePresenter();
         const health = await api('/health');
-        if (!health.ollama || !health.image || !health.ffmpeg) throw new Error(health.errors?.[0] || 'Connect the planner and image bridge to make an draft video preview.');
+        if (!health.ollama || health.planner_ready === false || !health.image || !health.ffmpeg) throw new Error(health.planner_error || health.errors?.[0] || 'Connect the planner and image bridge to make a draft video preview.');
         if ($('gen-narration')?.checked && !health.voice) throw new Error('Connect the voice service before creating a narrated preview.');
         if (!await prepareStoryboard()) return;
         const draft = structuredClone(collect());
@@ -648,7 +657,7 @@
         connectionHealth = health;
         health.ollama ? setColabOnline(model, health.models) : setColabOffline();
         const auth = Object.values(health.services || {}).some(s => s.status === 'auth_required');
-        const ready = health.ollama && health.image && health.voice && health.ffmpeg;
+        const ready = health.ollama && health.planner_ready !== false && health.image && health.voice && health.ffmpeg;
         if (auth || (health.ollama && !ready)) {
             $('colab-status-text').textContent = auth ? 'TOKEN REQUIRED' : 'PARTLY READY';
             $('colab-status-text').style.color = '#F59E0B';
@@ -656,7 +665,7 @@
             $('colab-status-dot').title = auth ? 'Server reached; access token rejected' : 'Some services need attention';
         }
         const authError = Object.values(health.services || {}).find(s => s.status === 'auth_required')?.message;
-        showColabMsg(ready ? (health.voice_provider === 'direct_neural' ? 'Connected: planning and images ready. Direct neural voice available; use Hear voice sample.' + (health.video_tested ? ' Motion encoded; review visual quality.' : '') : health.video_tested ? 'Connected: planning, images and voice ready. Motion encoded in this session; review visual quality.' : health.video_available ? 'Connected: AI motion available; motion inference has not been tested yet.' : 'Connected: image stories and voice ready. Motion is unavailable on this bridge.') : authError || health.errors?.[0] || 'A service is not ready. Open the connection report.', ready ? 'green' : 'orange');
+        showColabMsg(ready ? (health.voice_provider === 'direct_neural' ? 'Connected: planning and images ready. Direct neural voice available; use Hear voice sample.' + (health.video_tested ? ' Motion encoded; review visual quality.' : '') : health.video_tested ? 'Connected: planning, images and voice ready. Motion encoded in this session; review visual quality.' : health.video_available ? 'Connected: AI motion available; motion inference has not been tested yet.' : 'Connected: image stories and voice ready. Motion is unavailable on this bridge.') : authError || (health.planner_ready === false && health.planner_error) || health.errors?.[0] || 'A service is not ready. Open the connection report.', ready ? 'green' : 'orange');
     }
     async function saveAndCheck(applyPreferences = true) {
         if (checkingConnection) return;
@@ -675,7 +684,7 @@
         const health = await api('/health');
         showConnectionHealth(health, value.model);
         if (isRealPresenter()) await checkPresenter();
-        safeResult('Connection check', {language_model: health.ollama ? 'Ready' : 'Unavailable',
+        safeResult('Connection check', {language_model: health.planner_ready === false ? (health.planner_error || 'Inference unavailable') : health.ollama ? 'Ready' : 'Unavailable',
             motion: health.video_tested ? 'Video encoded in this Colab session; visual quality requires review' : health.video_available ? 'Available; inference not yet tested' : !health.bridge_connected ? 'Not checked — connect the bridge first' : 'Unavailable on this Colab bridge',
             images: health.image ? 'Startup test passed' : 'Unavailable',
             voice: health.voice ? (health.voice_provider === 'direct_neural' ? 'Direct neural runtime available; Hear voice sample tests the online service' : 'Startup test passed') : 'Unavailable',

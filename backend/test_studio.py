@@ -15,6 +15,47 @@ ANALYZE_VIDEO_BRIEF = studio.video_brief.analyze
 
 
 class StudioTests(unittest.TestCase):
+    def test_health_distinguishes_model_presence_from_planner_inference(self):
+        cfg=studio.Settings(ollama_url='https://planner.invalid',model='qwen3.5:9b',
+                            image_url='https://bridge.invalid',bridge_token='private-token')
+        tags=Mock(status_code=200); tags.json.return_value={'models':[{'name':'qwen3.5:9b'}]}
+        bridge=Mock(status_code=200); bridge.json.return_value={
+            'image_ready':True,'voice_ready':True,'edit_planner_ready':False,
+            'planner_error':'Ollama runner terminated.', 'video_available':True}
+        recovery=Mock(status_code=503,text='')
+        recovery.json.return_value={'detail':'runner still unavailable; Bearer private-token at https://bridge.invalid/api/chat'}
+        with patch.object(studio,'settings',return_value=cfg), patch.object(studio,'headers',return_value={}), \
+             patch.object(studio.requests,'get',side_effect=[tags,bridge]), \
+             patch.object(studio.requests,'post',return_value=recovery):
+            response=TestClient(main.app).get('/api/studio/health')
+        self.assertEqual(response.status_code,200)
+        health=response.json()
+        self.assertTrue(health['ollama'],'The installed model should remain separately visible')
+        self.assertFalse(health['planner_ready'],'A model in /api/tags is not proof inference works')
+        self.assertEqual(health['services']['language_model']['status'],'inference_failed')
+        self.assertIn('runner still unavailable',health['planner_error'])
+        self.assertNotIn('private-token',health['planner_error'])
+        self.assertNotIn('bridge.invalid',health['planner_error'])
+
+    def test_health_recovers_planner_with_a_real_bridge_probe(self):
+        cfg=studio.Settings(ollama_url='https://planner.invalid',model='qwen3.5:9b',
+                            image_url='https://bridge.invalid',bridge_token='private-token')
+        studio.remember_planner(cfg,False,'Earlier 503: model runner terminated.')
+        tags=Mock(status_code=200); tags.json.return_value={'models':[{'name':'qwen3.5:9b'}]}
+        bridge=Mock(status_code=200); bridge.json.return_value={
+            'image_ready':True,'voice_ready':True,'edit_planner_ready':True,'planner_error':''}
+        recovery=Mock(status_code=200); recovery.json.return_value={'planner_ready':True}
+        with patch.object(studio,'settings',return_value=cfg), patch.object(studio,'headers',return_value={}), \
+             patch.object(studio.requests,'get',side_effect=[tags,bridge]), \
+             patch.object(studio.requests,'post',return_value=recovery) as post:
+            response=TestClient(main.app).get('/api/studio/health')
+        health=response.json()
+        self.assertTrue(health['planner_ready'])
+        self.assertEqual(health['planner_error'],'')
+        self.assertEqual(health['services']['language_model']['status'],'ready')
+        self.assertTrue(post.call_args.args[0].endswith('/planner/check'))
+        self.assertEqual(post.call_args.kwargs['timeout'],130)
+
     def test_hindi_romanized_writer_output_is_repaired_before_direction(self):
         project = studio.Project(prompt='Explain riverbank erosion', language='hi', research=False,
                                  duration=20, duration_mode='target')
