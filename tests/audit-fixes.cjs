@@ -15,7 +15,7 @@ app.whenReady().then(async()=>{
    const S=SmartEditStudio,E=SmartEditEditor,A=SmartEditSafety;let checks=0;const check=(x,m)=>{checks++;if(!x)throw Error(m)};
    const calls=[];let failSave=false,saved=[],jobs=[],saveGate=null;
    window.fetch=async(url,options={})=>{const route=new URL(url).pathname.replace('/api/studio','');calls.push({route,method:options.method});let data={};
-    if(route==='/local-health')data={production_api:15};
+    if(route==='/local-health')data={production_api:17};
     else if(route==='/projects')data=saved;
     else if(route==='/jobs')data=jobs;
     else if(route==='/storage-health')data={warnings:[{file:'damaged.json',kind:'projects'}]};
@@ -25,6 +25,14 @@ app.whenReady().then(async()=>{
     return new Response(JSON.stringify(data));};
    const p={id:'a'.repeat(32),title:'Generated fixture',prompt:'A tree',language:'en',duration:10,duration_mode:'content',aspect_ratio:'16:9',resolution:'720p',generation_mode:'images',narration:false,captions:false,style:'natural',scenes:[{id:'b'.repeat(32),text:'One two three four',visual_prompt:'A tree',asset_id:'',media_kind:'image',start:0,end:10,speed:1,mute:false}]};
    const load=()=>{S.loadProject(structuredClone(p));AgentPipeline.state.scenes[0].renderedAsset={asset_id:'c'.repeat(32),duration:10};selectClip(1);};
+   load();
+   document.getElementById('clip-screen-text').value='KEEP GOING';
+   document.getElementById('clip-fade-out').checked=true;
+   await document.getElementById('clip-screen-text').closest('form').onsubmit(new Event('submit',{cancelable:true}));
+   check(S.collect().scenes[0].overlay_text==='KEEP GOING'&&S.collect().scenes[0].fade_out,'Screen text/fade edit was dropped');
+   const readyRoundTrip=structuredClone(S.collect());readyRoundTrip.auto_music='calm';S.loadProject(readyRoundTrip);selectClip(1);
+   check(document.getElementById('clip-screen-text').value==='KEEP GOING'&&document.getElementById('editor-screen-text').textContent==='KEEP GOING','Screen text did not survive reload/preview');
+   check(S.collect().auto_music==='calm','Automatic music preference did not survive reload');
    load();document.getElementById('custom-speed-input').value='2';await confirmSpeedChange();currentTime=2;await splitClipAtPlayhead();
    const split=S.collect();check(DURATION===5,'Timeline must stay 5s');check(split.scenes.reduce((n,s)=>n+(s.end-s.start)/s.speed,0)===5,'Export duration differs from timeline');check(split.scenes.every(s=>s.speed===2),'Split reset speed');
    undoEdit();check(AgentPipeline.state.scenes.length===1&&DURATION===5,'Undo split lost timing');redoEdit();check(S.collect().scenes.every(s=>s.speed===2),'Redo split lost speed');

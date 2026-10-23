@@ -12,7 +12,7 @@ const AGENTS_LIST = [
     "name": "Orchestrator Agent",
     "type": "core",
     "badge": "Generate video",
-    "desc": "Runs writing, direction, narration–visual relevance checks, asset generation and MP4 export using your settings.",
+    "desc": "Runs brief interpretation, optional topic research, writing, direction, measured narration fitting, visual relevance checks and MP4 export using your settings.",
     "input": "Current project and selected scene",
     "output": "Generate video",
     "tool": "SmartEdit production workflow",
@@ -26,7 +26,7 @@ const AGENTS_LIST = [
     "name": "Script Agent",
     "type": "core",
     "badge": "Plan scenes",
-    "desc": "Plans your script and shots, then reviews image prompts against each narrated idea. Preserves your language and duration settings.",
+    "desc": "Interprets your topic, audience and requested style, uses optional online references, and plans connected narration and matching shots for your selected duration.",
     "input": "Current project and selected scene",
     "output": "Plan scenes",
     "tool": "SmartEdit production workflow",
@@ -441,7 +441,7 @@ const ARCH_NODES = [
   { label: "Orchestrator Agent (Agent 1)",       sub: "Hollywood EP + YouTube Growth + AI Systems Architect",                 color: "#06B6D4" },
   { label: "Ollama LLM Engine — /api/chat",      sub: "qwen3:8b / Llama3.2 — System+User messages, 8192 ctx — Zero API Key", color: "#10B981" },
   { label: "faster-whisper STT Engine",          sub: "Caption Agent: word-level timestamps, VAD filtering, FCC/Netflix std", color: "#F59E0B" },
-  { label: "gTTS + Web Speech API",              sub: "Voice Agent: Broadcast director optimization, TTS pause/emphasis rules",color: "#EF4444" },
+  { label: "Configured Studio voice engine",              sub: "Voice Agent: Broadcast director optimization, TTS pause/emphasis rules",color: "#EF4444" },
   { label: "Video Intelligence Layer (12)",      sub: "Scene Det • Jump Cut • Hook • SEO • Chapter • Thumbnail • Emotion…",  color: "#10B981" },
   { label: "FFmpeg CLI + Hardware Accel",        sub: "CUDA/AMD/Apple/Intel GPU detect, EBU R128, H.264/H.265/AV1",          color: "#06B6D4" }
 ];

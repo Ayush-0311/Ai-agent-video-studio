@@ -9,6 +9,29 @@ import studio
 
 
 class SpeechTimingTests(unittest.TestCase):
+    def test_known_text_alignment_preserves_spelling_without_punctuation_delay(self):
+        words=timing.alignment_words('Deep roots. पानी।',[
+            {'word':'Deep','start':.2,'end':.5}, {'word':' roots','start':.5,'end':1},
+            {'word':'.','start':1,'end':1.5}, {'word':' पानी।','start':1.6,'end':2}],2.2)
+        self.assertEqual([w['text'] for w in words],['Deep','roots.','पानी।'])
+        self.assertEqual(words[1]['end'],1)
+        self.assertEqual(words[2]['start'],1.6)
+
+    def test_known_text_alignment_rejects_changed_text_and_zero_duration(self):
+        for alignment in [[{'word':'Wrong','start':0,'end':1}],
+                          [{'word':'Hello','start':1,'end':1}]]:
+            with self.assertRaises(ValueError):timing.alignment_words('Hello',alignment,2)
+
+    def test_internal_quantized_zero_duration_word_gets_bounded_neighbor_span(self):
+        words=timing.alignment_words('पेड़ ही सभी',[
+            {'word':'पेड़','start':.4,'end':.8},
+            {'word':' ही','start':.8,'end':.8},
+            {'word':' सभी','start':.8,'end':1.2}],1.5)
+        self.assertEqual([word['text'] for word in words],['पेड़','ही','सभी'])
+        self.assertTrue(words[1]['start'] < .8 < words[1]['end'])
+        self.assertLessEqual(words[1]['end']-words[1]['start'],.16)
+        self.assertTrue(timing.valid_words(words,1.5))
+
     def test_trim_speed_and_scene_offset_do_not_retime_words_into_silence(self):
         words = [{'text':'Hello', 'start':.2, 'end':.6},
                  {'text':'world.', 'start':.7, 'end':1.1},
@@ -55,3 +78,22 @@ class SpeechTimingTests(unittest.TestCase):
     def test_hindi_phrases_preserve_unicode(self):
         words = [{'text':w,'start':i*.3,'end':i*.3+.25} for i,w in enumerate('यह एक सरल उदाहरण है।'.split())]
         self.assertEqual(list(timing.phrases(words))[0][2], 'यह एक सरल उदाहरण है।')
+
+
+class CaptionBoundaryTests(unittest.TestCase):
+    def test_sentence_boundary_does_not_show_next_sentence_early(self):
+        words=[{'text':'Ready.', 'start':2,'end':3},
+               {'text':'Next', 'start':3.15,'end':3.5},
+               {'text':'sentence.', 'start':3.5,'end':4}]
+        self.assertEqual(list(timing.phrases(words)),[(2,3,'Ready.'),(3.15,4,'Next sentence.')])
+
+    def test_measured_silence_refines_only_nearby_outer_edges(self):
+        words=[{'text':'Hello','start':2.06,'end':2.64},
+               {'text':'world.','start':5.5,'end':5.98}]
+        refined=timing.refine_quiet_edges(words,[(0,2.2),(6.1,8)])
+        self.assertAlmostEqual(refined[0]['start'],2.2)
+        self.assertAlmostEqual(refined[-1]['end'],6.1)
+        self.assertEqual(words[0]['start'],2.06)
+        self.assertEqual(refined[0]['end'],words[0]['end'])
+        self.assertEqual(timing.refine_quiet_edges(words,[(0,3),(7,8)]),words)
+        self.assertEqual(timing.refine_quiet_edges(words,[]),words)

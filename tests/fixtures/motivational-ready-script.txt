@@ -1,0 +1,10 @@
+Create a 60-second cinematic motivational video. Generate all images automatically.
+**0–5 sec:** Show a lonely young man sitting in a dark room. Voiceover: “ज़िंदगी हमेशा आसान नहीं होती।” Text: “NEVER GIVE UP.”
+**5–10 sec:** Show him studying alone at night, looking tired but determined. Voiceover: “कभी मेहनत के बाद भी सफलता नहीं मिलती।” Text: “KEEP GOING.”
+**10–15 sec:** Show him failing, looking disappointed, then closing his eyes and taking a deep breath. Voiceover: “लेकिन हारना और हार मान लेना अलग बातें हैं।” Text: “FAIL. LEARN. REPEAT.”
+**15–25 sec:** Show him waking up early, running at sunrise, and working consistently. Voiceover: “असली जीत तब शुरू होती है, जब तुम मुश्किलों के बावजूद आगे बढ़ते हो।” Text: “DISCIPLINE IS POWER.”
+**25–35 sec:** Show him studying, learning new skills, and improving every day. Voiceover: “हर छोटा कदम तुम्हें तुम्हारी मंज़िल के करीब ले जाता है।” Text: “ONE STEP AT A TIME.”
+**35–45 sec:** Show him working confidently in bright natural light, with cinematic close-ups and smooth transitions. Voiceover: “आज की मेहनत ही कल तुम्हारी पहचान बनेगी।” Text: “YOUR TIME WILL COME.”
+**45–55 sec:** Show him standing on a hilltop watching a beautiful sunrise. Voiceover: “इसलिए खुद पर भरोसा रखो और तब तक मत रुको, जब तक अपने सपनों के लिए पूरी कोशिश न कर लो।” Text: “BELIEVE IN YOURSELF.”
+**55–60 sec:** Show a powerful close-up of his determined face, then fade to black. Voiceover: “हार मत मानना… तुम्हारी कहानी अभी बाकी है।” Text: “YOUR STORY IS NOT OVER.”
+Use realistic AI-generated images, consistent character appearance, cinematic camera movements, emotional background music, a deep Hindi male voiceover, synchronized subtitles, and a vertical 9:16 format. Automatically assemble everything into a professional 60-second YouTube Short.

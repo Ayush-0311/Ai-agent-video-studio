@@ -496,42 +496,10 @@ def _ffmpeg_scene_clip(
 
 
 def synthesize_voice_file(text: str, language: str, out_path: Path) -> bool:
-    """Generate MP3 voice file using edge-tts for realistic human voice (fallback to gTTS)."""
-    voice_map = {
-        "en": "en-US-ChristopherNeural",
-        "hi": "hi-IN-MadhurNeural",
-        "es": "es-ES-AlvaroNeural",
-        "fr": "fr-FR-HenriNeural",
-        "de": "de-DE-KillianNeural"
-    }
-    voice = voice_map.get(language, "en-US-ChristopherNeural")
-    
-    import subprocess
-    import shutil
-    import sys
-    import os
-    
-    edge_tts_path = shutil.which("edge-tts")
-    if not edge_tts_path:
-        possible_path = os.path.join(os.path.dirname(sys.executable), "edge-tts")
-        edge_tts_path = possible_path if os.path.exists(possible_path) else "edge-tts"
-        
-    try:
-        res = subprocess.run([sys.executable, "-m", "edge_tts", "--voice", voice, "--text", text, "--write-media", str(out_path)], capture_output=True, timeout=120)
-        if res.returncode == 0 and out_path.exists() and out_path.stat().st_size > 100:
-            return True
-    except Exception:
-        pass
-        
-    # Fallback to gTTS
-    if not GTTS_AVAILABLE:
-        return False
-    try:
-        tts = gTTS(text=text, lang=language[:2], slow=False)
-        tts.save(str(out_path))
-        return out_path.exists() and out_path.stat().st_size > 100
-    except Exception:
-        return False
+    """Use the same selected narration engine as Studio and avatar exports."""
+    import studio
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    return studio.voice_asset(text, language, out_path)
 
 
 def _build_avatar_prompt(avatar_style: str) -> str:
@@ -1650,11 +1618,12 @@ Return ONLY valid JSON:
         raise HTTPException(status_code=502, detail=f"Avatar Generator Agent failed: {exc}") from exc
 
 
-# ── Agent 7: Voice Agent (edge-tts Neural / gTTS fallback) ──────────────────────
+# ── Agent 7: Voice Agent (shared Studio voice settings) ──────────────────────
 
 @app.post("/api/v1/synthesize-voice")
 def synthesize_voice(request: VoiceSynthesisRequest) -> dict[str, Any]:
-    """Voice Agent: Synthesizes speech using edge-tts Neural voices (gTTS fallback)."""
+    """Voice Agent: Synthesizes speech with the configured Studio engine."""
+    import studio
     try:
         filename = f"voice_{uuid.uuid4().hex}.mp3"
         filepath = AUDIO_OUT_DIR / filename
@@ -1672,7 +1641,7 @@ def synthesize_voice(request: VoiceSynthesisRequest) -> dict[str, Any]:
         return {
             "status": "completed",
             "agent": "Voice Agent",
-            "engine": "gTTS",
+            "engine": "colab-bridge" if studio.settings().voice_engine == "bridge" else "edge-tts",
             "language": request.language,
             "text_length": len(request.text),
             "audio_base64": audio_b64,
@@ -3066,6 +3035,9 @@ def orchestrate(request: ScriptGenerationRequest) -> dict[str, Any]:
 
 @app.get("/api/v1/agents-status")
 def agents_status() -> dict[str, Any]:
+    import studio
+    voice_cfg = studio.settings()
+    voice_configured = bool(voice_cfg.image_url) if voice_cfg.voice_engine == "bridge" else studio.narration.available()
     return {
         "status": "online",
         "total_agents": 28,
@@ -3076,7 +3048,7 @@ def agents_status() -> dict[str, Any]:
             {"id": 4,  "agent_id": "slide_generator",    "name": "Slide Generator Agent",      "endpoint": "/api/v1/generate-slides",        "status": "active", "requires": "Ollama"},
             {"id": 5,  "agent_id": "image_generator",    "name": "Image Generator Agent",      "endpoint": "/api/v1/generate-image-prompt",  "status": "active", "requires": "Ollama"},
             {"id": 6,  "agent_id": "avatar_generator",   "name": "Avatar Generator Agent",     "endpoint": "/api/v1/generate-avatar-prompt", "status": "active", "requires": "Ollama"},
-            {"id": 7,  "agent_id": "voice",              "name": "Voice Agent",                "endpoint": "/api/v1/synthesize-voice",       "status": "active" if GTTS_AVAILABLE else "needs_install", "requires": "gtts"},
+            {"id": 7,  "agent_id": "voice",              "name": "Voice Agent",                "endpoint": "/api/v1/synthesize-voice",       "status": "configured" if voice_configured else "needs_configuration", "requires": "connected Colab voice bridge" if voice_cfg.voice_engine == "bridge" else "edge-tts"},
             {"id": 8,  "agent_id": "lip_sync",           "name": "Lip-Sync Agent",             "endpoint": "/api/v1/lip-sync-info",          "status": "active"},
             {"id": 9,  "agent_id": "caption",            "name": "Caption Agent (Whisper)",    "endpoint": "/api/v1/generate-video",         "status": "active", "requires": "faster-whisper"},
             {"id": 10, "agent_id": "compositor",          "name": "Compositor Agent",           "endpoint": "/api/v1/composite-video",        "status": "active" if ffmpeg_available() else "ffmpeg_missing"},
@@ -3105,6 +3077,8 @@ def agents_status() -> dict[str, Any]:
             "whisper_model": WHISPER_MODEL,
             "ffmpeg_available": ffmpeg_available(),
             "gtts_available": GTTS_AVAILABLE,
+            "voice_engine": voice_cfg.voice_engine,
+            "voice_configured": voice_configured,
             "deep_translator_available": DEEP_TRANSLATOR_AVAILABLE,
         }
     }

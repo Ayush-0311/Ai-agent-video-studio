@@ -1,1 +1,4 @@
+# Install into the backend virtual environment in addition to backend/requirements.txt.
 pyngrok==7.5.1
+# The isolated Colab image-route tests decode real PNG references without GPU dependencies.
+Pillow>=11,<13

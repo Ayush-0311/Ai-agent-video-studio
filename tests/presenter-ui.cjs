@@ -14,7 +14,7 @@ app.whenReady().then(async()=>{
    localStorage.setItem('smarteditPresenterAsset',JSON.stringify({id:'e'.repeat(32),name:'old.mp4'}));
    window.fetch=async(url,options={})=>{
     const route=new URL(url).pathname.replace('/api/studio','');requests.push({route,body:options.body});let body={};
-    if(route==='/local-health')body={production_api:15};
+    if(route==='/local-health')body={production_api:17};
     if(route==='/presenter-status')body={available,tested:false,message:available?'Setup ready. Test first.':'Enable realistic presenter in Colab.'};
     if(route==='/presenter-test')body={id:'f'.repeat(32)};
     if(route==='/jobs/'+'f'.repeat(32))body={id:'f'.repeat(32),kind:'presenter_test',status:'completed',progress:100,events:[],result:{video_url:'/sample.mp4',message:'Review mouth movement before generating.'}};

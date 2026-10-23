@@ -8,7 +8,7 @@
         const point=(a,b,t)=>a+(b-a)*Math.max(0,Math.min(1,t));
         return {...fx,x:point(fx.x??.5,fx.end_x??.5,start),end_x:point(fx.x??.5,fx.end_x??.5,end),y:point(fx.y??.5,fx.end_y??.5,start),end_y:point(fx.y??.5,fx.end_y??.5,end)};
     };
-    let project = null, activeJob = null, running = false, settingsCache = null;
+    let project = null, activeJob = null, running = false, settingsCache = null, connectionHealth = null;
     let taskController = null, latestProgress = [0, 'Checking connection…'], taskStarted = 0;
     const node = (tag, text, cls) => { const n = document.createElement(tag); if (text !== undefined)
         n.textContent = text; if (cls)
@@ -49,16 +49,16 @@
     statusButton.onclick = () => { showProgress(); if (!running && !activeJob) statusButton.hidden = true; }; document.body.append(statusButton);
     async function api(path, method = 'GET', body, options = {}) {
         // Do not let a stale server silently discard newer editing properties.
-        if (method !== 'GET' && (['/plan', '/render', '/generate', '/assets', '/edit', '/agent-run', '/voice-preview', '/voice-settings', '/presenter-test'].includes(path) || method === 'PUT' && path.startsWith('/projects/'))) {
+        if (method !== 'GET' && (['/dub', '/plan', '/render', '/generate', '/assets', '/edit', '/agent-run', '/voice-preview', '/voice-settings', '/presenter-test'].includes(path) || method === 'PUT' && path.startsWith('/projects/'))) {
             const health = await api('/local-health', 'GET', undefined, options);
-            if (!(health.production_api >= (['/generate', '/render', '/plan', '/presenter-test'].includes(path) ? 15 : path.startsWith('/projects/') ? 15 : ['/voice-preview', '/voice-settings'].includes(path) ? 10 : path === '/agent-run' ? 5 : 3)))
+            if (!(health.production_api >= (path === '/dub' ? 16 : ['/generate', '/render', '/plan', '/presenter-test'].includes(path) ? 17 : path.startsWith('/projects/') ? 17 : ['/voice-preview', '/voice-settings'].includes(path) ? 10 : path === '/agent-run' ? 5 : 3)))
                 throw new Error('An older video backend is running. Keep this window open to preserve edits, finish active jobs, then run the SmartEdit launcher and retry.');
         }
         const controller = new AbortController(), signal = options.signal || taskController?.signal;
         const abort = () => controller.abort(); signal?.addEventListener('abort', abort, {once:true});
         if (signal?.aborted) abort();
         let timedOut = false;
-        const timer = setTimeout(() => { timedOut = true; controller.abort(); }, options.timeout ?? (path === '/health' ? 90000 : path === '/assets' ? 300000 : path === '/voice-preview' ? 120000 : 30000));
+        const timer = setTimeout(() => { timedOut = true; controller.abort(); }, options.timeout ?? (path === '/health' ? 90000 : path === '/assets' ? 300000 : path === '/voice-preview' ? 1230000 : 30000));
         try {
         const response = await fetch(base + '/api/studio' + path, { signal: controller.signal, method, headers: body instanceof FormData ? {} : { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body) });
         const data = await response.json();
@@ -114,12 +114,20 @@
         AgentPipeline._updateVideoProgress(100,job.result.message,false,base+job.result.video_url);
     })));
     updatePresenterUI();
+    let musicChosen=false, referenceChosen=false;
+    $('gen-auto-music')?.addEventListener('change',()=>{musicChosen=true;});
+    $('gen-character-reference')?.addEventListener('change',()=>{referenceChosen=true;});
+    function timedScriptInfo(text) {
+        const clock = value => value.includes(':') ? Number(value.split(':')[0])*60+Number(value.split(':')[1]) : Number(value);
+        const headers = [...text.matchAll(/^\s*(?:\*\*)?\[?\s*((?:\d{1,2}:)?\d{1,3}(?:\.\d+)?)\s*(?:sec(?:onds?)?|s)?\s*(?:[-–—]|to)\s*((?:\d{1,2}:)?\d{1,3}(?:\.\d+)?)\s*(?:sec(?:onds?)?|s)?\s*\]?\s*(?:\*\*)?\s*:\s*(?:\*\*)?/gim)];
+        return headers.length ? {duration:clock(headers.at(-1)[2])} : null;
+    }
     function fresh() {
         const presenter = $('gen-video-mode')?.value === 'avatar' ? '' : {realistic: ', realistic human presenter', cartoon: ', expressive 3D animated character'}[$('gen-avatar-style')?.value] || '';
-        return { id: uid(), title: 'New video', prompt: $('gen-video-prompt')?.value || '',
+        const result = { id: uid(), title: 'New video', prompt: $('gen-video-prompt')?.value || '',
             language: $('gen-video-lang')?.value || 'en', duration: Number($('gen-video-duration')?.value || 10),
             aspect_ratio: $('gen-video-ratio')?.value || '16:9', duration_mode: 'target',
-            narration_timing: $('gen-narration-timing')?.value || 'natural',
+            narration_timing: $('gen-narration-timing')?.value || 'exact',
             generation_mode: $('gen-video-mode')?.value || 'motion', narration: $('gen-narration')?.checked ?? true,
             motion_preset: $('gen-motion-preset')?.value || 'balanced',
             presenter_kind: $('gen-presenter-kind')?.value || 'illustrated',
@@ -131,9 +139,39 @@
             style: ($('gen-video-style')?.value || 'cinematic photography, natural lighting') + presenter,
             resolution: '1080p', captions: $('gen-captions')?.checked ?? true, brand: $('studio-brand')?.value || '',
             research: $('gen-research')?.checked ?? true,
+            auto_music: $('gen-auto-music')?.value || 'off',
+            character_reference: $('gen-character-reference')?.checked ?? false,
             music_id: '', music_volume: .12, denoise: !!$('studio-denoise')?.checked,
             color: $('studio-color')?.value || 'natural', scenes: [] };
+        const timed=timedScriptInfo(result.prompt);
+        if (timed && ['auto','ready'].includes(result.scene_mode)) {
+            result.scene_mode='ready'; result.narration_timing='exact';
+            if (Number.isInteger(timed.duration) && timed.duration>=10 && timed.duration<=180) result.duration=timed.duration;
+            if (/[\u0900-\u097f]/.test(result.prompt)) result.language='hi';
+            if (/\b9:16\b/.test(result.prompt)) result.aspect_ratio='9:16';
+            if (/generate all images|all images automatically/i.test(result.prompt)) result.generation_mode='images';
+            if (!musicChosen && /background music/i.test(result.prompt) && !/no background music/i.test(result.prompt)) result.auto_music='cinematic';
+            if (!referenceChosen && /consistent character|same character/i.test(result.prompt)) result.character_reference=true;
+        }
+        return result;
     }
+    $('gen-video-prompt')?.addEventListener('input',()=>{
+        const p=fresh();
+        if(p.scene_mode!=='ready')return;
+        $('gen-video-duration').max=['motion','hybrid'].includes(p.generation_mode)?'60':'180';
+        $('gen-video-duration').value=String(p.duration);
+        $('gen-dur-val').textContent=p.duration+'s · from script';
+        $('gen-narration-timing').value='exact';
+        $('gen-video-lang').value=p.language;
+        $('gen-video-ratio').value=p.aspect_ratio;
+        if($('gen-video-mode').value!==p.generation_mode){
+            $('gen-video-mode').value=p.generation_mode;
+            $('gen-video-mode').dispatchEvent(new Event('change'));
+        }
+        if(!musicChosen)$('gen-auto-music').value=p.auto_music;
+        if(!referenceChosen)$('gen-character-reference').checked=p.character_reference;
+        $('scene-type-help').textContent='Timed script detected. Timestamps, voiceover and screen text will be preserved.';
+    });
     $('gen-video-mode')?.addEventListener('change', () => {
         const mode = $('gen-video-mode').value, motion = ['motion','hybrid'].includes(mode), avatar = mode === 'avatar';
         $('gen-presenter-options').hidden = !avatar;
@@ -153,8 +191,9 @@
         duration.max = motion ? '60' : '180';
         duration.value = Math.min(Number(duration.value), Number(duration.max));
         $('gen-dur-val').textContent = duration.value + 's';
-        $('gen-mode-help').textContent = avatar ? 'Topic → concise script → narrated slides and presenter. Choose Natural pace to follow the speech, or Exact target to preserve the selected duration.' : mode === 'hybrid' ? 'One motion opening, then animated images and narration. Draft video preview tests the storyboard without motion generation.' : motion
-            ? 'Every scene generates new motion. Fast draft is a low-detail composition test and may show visible artifacts. Balanced and High detail take longer. 1080p export cannot restore missing source detail.'
+        const t4SlowWan = /T4/i.test(connectionHealth?.gpu || '') && connectionHealth?.video_profile?.engine === 'wan2.1';
+        $('gen-mode-help').textContent = avatar ? 'Topic → full explanation → narrated slides and presenter. Exact target fits the auto-written script to your selected duration.' : mode === 'hybrid' ? (t4SlowWan ? 'One motion opening, then animated images and narration. On the connected T4, one balanced 5-second motion shot measured about 46 minutes; Fast draft is shorter.' : 'One motion opening, then animated images and narration. Draft video preview tests the storyboard without motion generation.') : motion
+            ? (t4SlowWan ? 'Every scene generates new motion. The connected T4 uses FP32 Wan; one balanced 5-second shot measured about 46 minutes, so a multi-shot video can take hours. Use Fast draft or Hybrid for a shorter job.' : 'Every scene generates new motion. Fast draft is a low-detail composition test and may show visible artifacts. Balanced and High detail take longer. 1080p export cannot restore missing source detail.')
             : 'Animated images with pan/zoom and narration; no generated character motion. This is the fastest creation mode.';
     });
     function updateVoiceStatus() {
@@ -165,7 +204,8 @@
     updateVoiceStatus();
     $('edit-ai-scene-type')?.addEventListener('change', () => {
         $('scene-type-help').textContent = {
-            auto: 'Auto plans shots from your idea. Other modes split a finished script.',
+            auto: 'Plans a topic, or detects a timestamped ready script automatically.',
+            ready: 'Paste 0–5 sec: Visual: … Voiceover: “…” Text: “…”. Exact timestamps and dialogue are preserved.',
             sentences: 'One scene per sentence. Hindi danda (।) and line breaks are supported.',
             paragraphs: 'One scene per paragraph. Separate paragraphs with a blank line.',
             manual: 'Start each scene with [Scene 1], [Scene 2], etc.'
@@ -185,8 +225,8 @@
         oldVideo.removeAttribute('src');
         oldVideo.style.display = 'none';
         oldVideo.load();
-    } let cursor = 0; AgentPipeline.state.scenes = p.scenes.map((s, i) => { const duration = (s.end - s.start) / s.speed; const scene = { id: i + 1, studio_id: s.id, keyword: 'Scene_' + (i + 1), s: cursor, e: cursor + duration, text: s.text, slide_title: s.slide_title || '', slide_points: [...(s.slide_points || [])], speaker: s.media_kind === 'video' ? 'Source audio' : 'AI voice', layout: s.layout || 'full-presenter', agent: 'Studio pipeline', vis: { query: s.visual_prompt, label: 'Scene ' + (i + 1), color: 'rgba(139,92,246,.2)' }, asset_id: s.asset_id, media_kind: s.media_kind, sourceStart: s.start, sourceEnd: s.end, speed: s.speed, muted: s.mute, volume: s.volume ?? 1, fit: s.fit || 'contain', flip: !!s.flip, brightness: s.brightness ?? 0, contrast: s.contrast ?? 1, saturation: s.saturation ?? 1, sharpness: s.sharpness ?? 0, effects: structuredClone(s.effects || {}), renderedAsset: s.rendered_asset ? structuredClone(s.rendered_asset) : undefined }; if (scene.renderedAsset && !scene.renderedAsset.content_key) scene.renderedAsset.content_key = previewKey(scene, p); cursor += duration; return scene; }); AgentPipeline.state.language = p.language; AgentPipeline.state.aspectRatio = p.aspect_ratio; AgentPipeline.state.prompt = p.prompt; AgentPipeline.state.historyStack = []; AgentPipeline.state.redoStack = []; window.selectedClipId = null; window.editorInited = false; currentTime = 0; goTo('editor'); updateViews(reason); if (reason === 'load') window.SmartEditSafety?.markSaved(); }
-    function collect() { project = project || fresh(); project.language = AgentPipeline.state.language || project.language; project.aspect_ratio = AgentPipeline.state.aspectRatio || project.aspect_ratio; project.scenes = AgentPipeline.state.scenes.map(s => ({ id: s.studio_id || (s.studio_id = uid()), text: s.text || '', slide_title: s.slide_title || '', slide_points: [...(s.slide_points || [])], visual_prompt: s.vis?.sdPrompt || s.vis?.query || s.visual_prompt || '', asset_id: s.asset_id || '', media_kind: s.media_kind || 'image', layout: s.layout || 'full-presenter', start: s.asset_id ? Number(s.sourceStart || 0) : 0, end: s.asset_id ? Number(s.sourceEnd || s.e - s.s) : Math.max(.1, (s.e - s.s) * (s.speed || 1)), speed: s.speed || 1, mute: !!s.muted, volume: s.volume ?? 1, fit: s.fit || 'contain', flip: !!s.flip, brightness: s.brightness ?? 0, contrast: s.contrast ?? 1, saturation: s.saturation ?? 1, sharpness: s.sharpness ?? 0, effects: structuredClone(s.effects || {}), rendered_asset: !s.asset_id && validPreview(s) ? structuredClone(s.renderedAsset) : null })); return project; }
+    } let cursor = 0; AgentPipeline.state.scenes = p.scenes.map((s, i) => { const duration = (s.end - s.start) / s.speed; const scene = { id: i + 1, studio_id: s.id, keyword: 'Scene_' + (i + 1), s: cursor, e: cursor + duration, text: s.text, caption_source_text: s.caption_source_text || '', caption_words: structuredClone(s.caption_words || []), slide_title: s.slide_title || '', slide_points: [...(s.slide_points || [])], overlay_text: s.overlay_text || '', fade_out: !!s.fade_out, speaker: s.media_kind === 'video' ? 'Source audio' : 'AI voice', layout: s.layout || 'full-presenter', agent: 'Studio pipeline', vis: { query: s.visual_prompt, label: 'Scene ' + (i + 1), color: 'rgba(139,92,246,.2)' }, asset_id: s.asset_id, media_kind: s.media_kind, sourceStart: s.start, sourceEnd: s.end, speed: s.speed, muted: s.mute, volume: s.volume ?? 1, fit: s.fit || 'contain', flip: !!s.flip, brightness: s.brightness ?? 0, contrast: s.contrast ?? 1, saturation: s.saturation ?? 1, sharpness: s.sharpness ?? 0, effects: structuredClone(s.effects || {}), renderedAsset: s.rendered_asset ? structuredClone(s.rendered_asset) : undefined }; if (scene.renderedAsset && !scene.renderedAsset.content_key) scene.renderedAsset.content_key = previewKey(scene, p); cursor += duration; return scene; }); AgentPipeline.state.language = p.language; AgentPipeline.state.aspectRatio = p.aspect_ratio; AgentPipeline.state.prompt = p.prompt; AgentPipeline.state.historyStack = []; AgentPipeline.state.redoStack = []; window.selectedClipId = null; window.editorInited = false; currentTime = 0; goTo('editor'); updateViews(reason); if (reason === 'load') window.SmartEditSafety?.markSaved(); }
+    function collect() { project = project || fresh(); project.language = AgentPipeline.state.language || project.language; project.aspect_ratio = AgentPipeline.state.aspectRatio || project.aspect_ratio; project.scenes = AgentPipeline.state.scenes.map(s => ({ id: s.studio_id || (s.studio_id = uid()), text: s.text || '', caption_source_text: s.caption_source_text || '', caption_words: structuredClone(s.caption_words || []), slide_title: s.slide_title || '', slide_points: [...(s.slide_points || [])], overlay_text: s.overlay_text || '', fade_out: !!s.fade_out, visual_prompt: s.vis?.sdPrompt || s.vis?.query || s.visual_prompt || '', asset_id: s.asset_id || '', media_kind: s.media_kind || 'image', layout: s.layout || 'full-presenter', start: s.asset_id ? Number(s.sourceStart || 0) : 0, end: s.asset_id ? Number(s.sourceEnd || s.e - s.s) : Math.max(.1, (s.e - s.s) * (s.speed || 1)), speed: s.speed || 1, mute: !!s.muted, volume: s.volume ?? 1, fit: s.fit || 'contain', flip: !!s.flip, brightness: s.brightness ?? 0, contrast: s.contrast ?? 1, saturation: s.saturation ?? 1, sharpness: s.sharpness ?? 0, effects: structuredClone(s.effects || {}), rendered_asset: !s.asset_id && validPreview(s) ? structuredClone(s.renderedAsset) : null })); return project; }
     function finish(job, showCompletion = true) { const result = job.result; if (result.project) { loadProject(structuredClone(result.project)); plannedKey = briefKey(result.project); plannedProjectId = result.project.id; } result.timeline.forEach((timing, index) => { const scene = AgentPipeline.state.scenes[index]; if (scene) {
         scene.s = timing.start;
         scene.e = timing.end;
@@ -255,7 +295,7 @@
         ids.forEach(id => { if ($(id))
             $(id).disabled = false; });
     } }
-    async function planOnly(p = fresh()) { if (p.prompt.trim().length < 5)
+    async function planOnly(p = fresh()) { if (!p.prompt.trim())
         throw new Error('Write a video idea or script first.'); const job = await watch(await api('/plan', 'POST', p)); loadProject(job.result);
         plannedKey = briefKey(p); plannedProjectId = project.id; return job.result; }
     window.triggerFullVideoGeneration = protect(() => task(async () => {
@@ -264,7 +304,7 @@
         if (!reuseEdits && window.SmartEditSafety && !await window.SmartEditSafety.confirmReplacement()) return;
         await requirePresenter();
         if ($('gen-lipsync')?.checked) throw new Error('Lip-sync is not integrated. Turn it off to continue.');
-        if (desired.prompt.trim().length < 5) throw new Error('Write a video idea or script first.');
+        if (!desired.prompt.trim()) throw new Error('Write a video idea or script first.');
         const health = await api('/health');
         const connectionError = Object.values(health.services || {}).find(s => ['auth_required', 'tunnel_offline', 'network_error', 'timeout', 'invalid_response', 'http_error'].includes(s.status));
         if (connectionError) throw new Error(connectionError.message);
@@ -281,7 +321,8 @@
         const reuse = briefKey(desired) === plannedKey && project?.id === plannedProjectId && project?.scenes?.length;
         const payload = reuse ? {...collect(), duration_mode:'target', narration_timing:desired.narration_timing, duration:desired.duration, motion_preset:desired.motion_preset, presenter_layout:desired.presenter_layout,
             presenter_character:desired.presenter_character, presenter_theme:desired.presenter_theme,
-            presenter_kind:desired.presenter_kind,presenter_asset_id:desired.presenter_asset_id} : desired;
+            presenter_kind:desired.presenter_kind,presenter_asset_id:desired.presenter_asset_id,
+            auto_music:desired.auto_music,character_reference:desired.character_reference} : desired;
         AgentPipeline._updateVideoProgress(0, reuse ? 'Submitting reviewed storyboard for rendering…' : 'Starting explanation planning and video production…');
         const job = await watch(await api('/generate', 'POST', payload)); finish(job);
     }));
@@ -294,6 +335,8 @@
         if (briefKey(desired) !== plannedKey || project?.id !== plannedProjectId || !project?.scenes?.length) await planOnly(desired);
         project.motion_preset = desired.motion_preset;
         project.narration_timing = desired.narration_timing;
+        project.auto_music = desired.auto_music;
+        project.character_reference = desired.character_reference;
         project.presenter_layout = desired.presenter_layout;
         project.presenter_character = desired.presenter_character;
         project.presenter_theme = desired.presenter_theme;
@@ -315,8 +358,10 @@
         for (const revised of job.result.project?.scenes || []) {
             const original = project.scenes.find(s => s.id === revised.id);
             const editable = AgentPipeline.state.scenes.find(s => s.studio_id === revised.id);
-            if (original) { original.text = revised.text; original.visual_prompt = revised.visual_prompt; }
-            if (editable) { editable.text = revised.text; editable.vis = {...editable.vis, query:revised.visual_prompt, sdPrompt:revised.visual_prompt}; }
+            if (original) { original.text = revised.text; original.visual_prompt = revised.visual_prompt;
+                original.slide_title = revised.slide_title || ''; original.slide_points = [...(revised.slide_points || [])]; }
+            if (editable) { editable.text = revised.text; editable.vis = {...editable.vis, query:revised.visual_prompt, sdPrompt:revised.visual_prompt};
+                editable.slide_title = revised.slide_title || ''; editable.slide_points = [...(revised.slide_points || [])]; }
         }
         if (job.result.project?.production_notes) project.production_notes = structuredClone(job.result.project.production_notes);
         updateViews('preview');
@@ -337,14 +382,37 @@
         $('gen-video-ratio').value = config.aspectRatio; return window.generateFullVideo(prompt, config.duration || 10); };
     window.startScriptPipeline = window.simulatePromptUpload;
     async function upload(file) { validateMediaFile(file); const form = new FormData(); form.append('file', file); return api('/assets', 'POST', form); }
-    async function importVideo(transcribe) { const file = SmartEditBackend.selectedFile; if (!file)
+    function updateDubOptions() {
+        const enabled = $('upload-translate').checked;
+        $('upload-target-wrap').hidden = $('upload-dub-help').hidden = !enabled;
+        $('upload-action-label').textContent = enabled ? 'Translate & dub video' : 'Import video';
+        const source = $('upload-language').selectedOptions[0].textContent;
+        const target = $('upload-target-language').selectedOptions[0].textContent;
+        const outputLanguage = enabled ? target : source;
+        $('upload-caption-label').textContent = '3. Add ' + outputLanguage + ' captions';
+        $('upload-caption-help').textContent = enabled ? 'Captions use the translated script.' : 'Captions follow the original speech language.';
+        $('upload-local-help').hidden = enabled;
+        $('upload-output-summary').textContent = enabled && source === target
+            ? 'Choose a new voice language different from the original.'
+            : 'Output: ' + (enabled ? source + ' → ' + target + ' voice' : 'Original ' + source + ' audio')
+              + ($('upload-transcribe').checked ? ' + ' + outputLanguage + ' captions' : ' · No new captions');
+    }
+    for (const id of ['upload-translate','upload-language','upload-target-language','upload-transcribe']) $(id).addEventListener('change', updateDubOptions);
+    updateDubOptions();
+    async function importVideo(transcribe, dub = false) {
+        const target = $('upload-target-language').value;
+        if (dub && target === $('upload-language').value) throw new Error('Choose a target language different from the source speech language.');
+        const file = SmartEditBackend.selectedFile; if (!file)
         throw new Error('Select your video first.'); if (window.SmartEditSafety && !await window.SmartEditSafety.confirmReplacement()) return; const media = await upload(file); if (media.kind !== 'video')
-        throw new Error('Select a video file.'); const p = fresh(); p.language = $('upload-language')?.value || p.language; p.generation_mode = 'images'; p.duration_mode = 'content'; p.narration = false; p.captions = false; p.title = media.name; p.scenes = [{ id: uid(), asset_id: media.id, media_kind: 'video', start: 0, end: media.duration, text: '', visual_prompt: '', speed: 1, mute: false }]; loadProject(p, 'import'); await window.SmartEditSafety.save(); loadRealVideo(base + '/api/studio/assets/' + media.id); if (transcribe) {
+        throw new Error('Select a video file.'); const p = fresh(); p.language = $('upload-language')?.value || p.language; p.generation_mode = 'images'; p.duration_mode = 'content'; p.narration = false; p.captions = false; p.title = media.name; p.scenes = [{ id: uid(), asset_id: media.id, media_kind: 'video', start: 0, end: media.duration, text: '', visual_prompt: '', speed: 1, mute: false }]; loadProject(p, 'import'); await window.SmartEditSafety.save(); loadRealVideo(base + '/api/studio/assets/' + media.id); if (dub) {
+        const job = await watch(await api('/dub', 'POST', {project:p, scene_id:p.scenes[0].id, target_language:target, captions:!!transcribe}));
+        finish(job); return;
+    } if (transcribe) {
         const job = await watch(await api('/transcribe', 'POST', { project: p, scene_id: p.scenes[0].id, remove_silence: false }));
         loadProject(job.result);
     } AgentPipeline._updateVideoProgress(100, 'Video loaded. Edit the timeline and click Export to apply edits.'); }
     window.openInEditorDirectly = protect(event => { event?.stopPropagation(); return task(() => importVideo(false)); });
-    window.startProcessingFlow = protect(() => task(() => importVideo($('upload-transcribe')?.checked ?? false)));
+    window.startProcessingFlow = protect(() => task(() => importVideo($('upload-transcribe')?.checked ?? false, $('upload-translate')?.checked ?? false)));
     window.simulateUpload = protect((file, config) => { if (file instanceof File)
         SmartEditBackend.selectedFile = file; return task(() => importVideo(true)); });
     window.addAudioTrack = () => { const picker = node('input'); picker.type = 'file'; picker.accept = 'audio/*'; picker.onchange = protect(async () => { if (!picker.files[0])
@@ -352,7 +420,7 @@
         throw new Error('Select an audio-only track.'); project = project || fresh(); project.music_id = media.id; toast('Music attached: ' + media.name + '. It will be mixed and ducked in the next export.'); }); picker.click(); };
     // Timeline operations preserve separate source time and output time.
     function previewKey(scene, p = project) {
-        return JSON.stringify([scene.text || '', scene.vis?.sdPrompt || scene.vis?.query || '', scene.slide_title || '', scene.slide_points || [],
+        return JSON.stringify([scene.text || '', scene.vis?.sdPrompt || scene.vis?.query || '', scene.slide_title || '', scene.slide_points || [],scene.overlay_text || '',!!scene.fade_out,
             p?.style, p?.language, p?.generation_mode, p?.presenter_kind, p?.presenter_asset_id,
             p?.presenter_character, p?.presenter_theme, p?.presenter_layout, p?.narration, p?.motion_preset]);
     }
@@ -577,6 +645,7 @@
     }
     let connectionRevision = 0, checkingConnection = false;
     function showConnectionHealth(health, model) {
+        connectionHealth = health;
         health.ollama ? setColabOnline(model, health.models) : setColabOffline();
         const auth = Object.values(health.services || {}).some(s => s.status === 'auth_required');
         const ready = health.ollama && health.image && health.voice && health.ffmpeg;
@@ -803,7 +872,7 @@
     const resumed = localStorage.getItem('smartedit.original.activeJob');
     if (resumed)
         protect(() => task(async () => { const job = await watch({ id: resumed }); const projects = await api('/projects'); const p = projects.find(p => p.id === job.project_id); if (p)
-            loadProject(p); if (['render','generate'].includes(job.kind))
+            loadProject(p); if (['render','generate','dub'].includes(job.kind))
             finish(job);
         else if (job.kind === 'presenter_test')
             AgentPipeline._updateVideoProgress(100,job.result.message,false,base+job.result.video_url);

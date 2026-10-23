@@ -328,7 +328,7 @@
               <div class="generation-prompt-tools">
                 <button type="button" onclick="generateScriptWithAI()" id="edit-ai-btn">✨ Plan scenes</button>
                 <label for="edit-ai-scene-type">Scenes
-                  <select id="edit-ai-scene-type" aria-describedby="scene-type-help"><option value="auto">Auto shots</option><option value="sentences">Sentences</option><option value="paragraphs">Paragraphs</option><option value="manual">Manual tags</option></select>
+                  <select id="edit-ai-scene-type" aria-describedby="scene-type-help"><option value="auto">Auto shots / detect script</option><option value="ready">Ready script · Exact timestamps</option><option value="sentences">Sentences</option><option value="paragraphs">Paragraphs</option><option value="manual">Manual tags</option></select>
                 </label>
               </div>
               <div class="generation-speed">                <label for="gen-motion-preset">Motion detail
@@ -354,6 +354,12 @@
               </fieldset>
               <p id="scene-type-help" class="generation-note">Auto plans shots from your idea. Other modes split a finished script.</p>
               <label class="generation-research"><input id="gen-research" type="checkbox" checked> Online references <span>· topic sent to Wikipedia</span></label>
+              <details class="generation-note"><summary>Script, music &amp; character options</summary>
+                <p>Ready script: use <strong>0–5 sec: Visual: … Voiceover: “…” Text: “…”</strong>. Slots must be continuous from 0. Timestamps and supplied dialogue are preserved. Long motion slots may need splitting; Image story supports longer scenes.</p>
+                <label>Background instrumental <select id="gen-auto-music"><option value="off">Off / use attached audio</option><option value="cinematic">Cinematic · Local composer</option><option value="uplifting">Uplifting · Local composer</option><option value="calm">Calm · Local composer</option></select></label>
+                <label><input id="gen-character-reference" type="checkbox"> Main character reference · Images</label>
+                <p>Reference images help preserve appearance; motion uses shared descriptions. Requires the updated Colab notebook. First reference use downloads additional weights on SDXL. Exact identity is not guaranteed.</p>
+              </details>
             </div>
             <div class="generation-settings">
               <div class="generation-fields">
@@ -384,7 +390,7 @@
                   <input id="gen-video-duration" type="range" min="10" max="60" step="5" value="20" oninput="document.getElementById('gen-dur-val').textContent=this.value+'s'">
                 </label>
                 <label for="gen-narration-timing">Narration timing
-                  <select id="gen-narration-timing" aria-describedby="narration-timing-help"><option value="natural" selected>Natural pace · Follow the voice</option><option value="exact">Exact target · May add quiet time</option></select>
+                  <select id="gen-narration-timing" aria-describedby="narration-timing-help"><option value="exact" selected>Exact target · Fit script to duration</option><option value="natural">Natural pace · Follow the voice</option></select>
                 </label>
               </div>
               <div class="generation-toggles">
@@ -392,7 +398,7 @@
                 <label><input id="gen-captions" type="checkbox" checked> Show subtitles</label>
                 <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('studio-voice-language').value=document.getElementById('gen-video-lang').value;goTo('settings')">Voice settings &amp; preview</button>
               </div>
-              <p id="narration-timing-help" class="generation-note">Natural pace uses the target to plan the script, then ends each narrated scene with the speech. Exact target preserves the selected length. New neural narration includes speech-timed captions in both modes.</p>
+              <p id="narration-timing-help" class="generation-note">Exact target fits auto-written narration to the selected duration before creating visuals, with short scene pauses. Natural pace ends each scene with the speech, so the final length can differ. Captions follow the voice in both modes.</p>
               <div id="avatar-lipsync-row" class="generation-note" hidden><label><input type="checkbox" id="gen-lipsync" disabled> Lip-sync unavailable in this mode</label><span>For a talking presenter, choose Avatar explainer → MuseTalk · Talking portrait.</span></div>
               <p id="gen-mode-help" class="generation-note">One motion opening, then animated images and narration. Try Draft video preview first. Motion still depends on Colab GPU speed.</p>
             </div>
@@ -432,19 +438,28 @@
         <input type="file" id="file-input" accept=".mp4,.mov,.mkv,.webm" style="display:none" onchange="fileSelected(event)"/>
 
         <section class="card upload-processing-options" style="padding:20px;margin-top:20px" aria-labelledby="upload-options-title">
-          <h3 id="upload-options-title" class="h4" style="margin-bottom:12px">Import options</h3>
-          <div class="flex items-center gap-16" style="flex-wrap:wrap">
-            <label for="upload-language">Speech language
-              <select id="upload-language" class="btn btn-secondary"><option value="en">English</option><option value="hi">Hindi</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option></select>
-            </label>
-            <label class="flex items-center gap-8"><input type="checkbox" id="upload-transcribe"> Transcribe speech into captions</label>
+          <h3 id="upload-options-title" class="h4">Choose your video output</h3>
+          <div class="import-option-row">
+            <div><label for="upload-language" class="import-option-title">1. Original speech language</label><p>The language spoken in your uploaded video.</p></div>
+            <select id="upload-language" class="btn btn-secondary"><option value="en">English</option><option value="hi">Hindi</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option></select>
           </div>
-          <p style="color:var(--t2);font-size:12px;margin-top:12px">Editing and MP4 export work locally. Optional transcription uses Whisper and may download its model on first use. Add your music and adjust color in the editor.</p>
+          <div class="import-option-row">
+            <div><label class="import-option-title" for="upload-translate"><input type="checkbox" id="upload-translate"> 2. Translate audio to another language</label><p>Leave off to keep the original audio.</p></div>
+            <label id="upload-target-wrap" hidden>New voice language
+              <select id="upload-target-language" class="btn btn-secondary"><option value="hi">Hindi</option><option value="en">English</option><option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option></select>
+            </label>
+          </div>
+          <div class="import-option-row">
+            <div><label class="import-option-title" for="upload-transcribe"><input type="checkbox" id="upload-transcribe"> <span id="upload-caption-label">3. Add captions</span></label><p id="upload-caption-help">Captions follow the original speech language.</p></div>
+          </div>
+          <p id="upload-output-summary" class="import-output-summary" aria-live="polite"></p>
+          <p id="upload-dub-help" hidden class="import-option-note">Dubbing needs a connected Colab. Original speech and music are replaced. Captions printed into the picture remain; lips are not re-synced.</p>
+          <p id="upload-local-help" class="import-option-note">Editing and export work locally. Creating captions may download the speech model on first use.</p>
         </section>
 
         <button class="btn btn-primary w-full" style="margin-top:18px;padding:15px;font-size:15px;border-radius:14px" onclick="startProcessingFlow()">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z"/></svg>
-          Import video
+          <span id="upload-action-label">Import video</span>
         </button>
       </div>
     </div>
@@ -590,7 +605,7 @@
           <div class="progress-fill" id="progress-fill" style="width:0%"></div>
           <div class="progress-thumb" id="progress-thumb" style="left:0%"></div>
         </div>
-        <span class="mono" style="font-size:10px;color:var(--t4);flex-shrink:0">0:30</span>
+        <span id="preview-total-duration" class="mono" style="font-size:10px;color:var(--t4);flex-shrink:0">0:00</span>
         <!-- Preview monitoring never changes exported clip audio. -->
         <button id="preview-audio-toggle" class="btn-icon" type="button" onclick="togglePreviewMute()" aria-label="Mute preview only" aria-pressed="false" title="Mute preview only (does not change export)">🔊</button>
         <input type="range" class="range volume-slider" aria-label="Preview volume" title="Preview volume only; exported audio is unchanged" min="0" max="100" value="80" style="width:64px" oninput="volChange(this.value)">

@@ -1,19 +1,73 @@
 import unittest
+import json
 from types import SimpleNamespace
 from unittest.mock import Mock
 import script_timing
 
 
 class TimingTests(unittest.TestCase):
+    def test_hindi_requires_devanagari_script(self):
+        self.assertFalse(script_timing.narration_language_valid('Ped ki jadain mitti pakadti hain.', 'hi'))
+        self.assertTrue(script_timing.narration_language_valid('पेड़ों की जड़ें मिट्टी को पकड़ती हैं।', 'hi'))
+        self.assertTrue(script_timing.narration_language_valid('Roots hold soil.', 'en'))
+
+    def test_overlong_measured_rewrite_is_repaired_before_voice_generation(self):
+        from studio import Project, Scene
+        scene = Scene(text='Tree roots hold the soil together along a flowing river.', visual_prompt='Tree roots along a river', end=10)
+        project = Project(duration=10, scenes=[scene])
+        reply = {'scenes':[{'id':scene.id,'text':scene.text,'visual_prompt':scene.visual_prompt}]}
+        chat = Mock(side_effect=[reply, {'scenes':[{'id':scene.id,'text':'Tree roots reduce erosion.'}]}])
+        revised = script_timing.rewrite_explanation(project, [20], chat)
+        self.assertEqual(chat.call_count, 2)
+        self.assertTrue(all(call.kwargs['think'] is False for call in chat.call_args_list))
+        self.assertEqual(revised[0].text, 'Tree roots reduce erosion.')
+        self.assertEqual(revised[0].visual_prompt, scene.visual_prompt)
+        self.assertEqual(project.scenes[0].text, scene.text)
+
+    def test_expansion_uses_measured_voice_not_word_estimate_as_truth(self):
+        from studio import Project, Scene
+        scene = Scene(text='Trees slow erosion.', visual_prompt='Trees beside a river', end=10)
+        project = Project(duration=10, scenes=[scene])
+        expanded = 'Trees slow erosion by holding soil together along the riverbank during heavy rain.'
+        reply = {'scenes':[{'id':scene.id,'text':expanded,'visual_prompt':scene.visual_prompt}]}
+        chat = Mock(return_value=reply)
+        revised = script_timing.rewrite_explanation(project, [3], chat)
+        self.assertEqual(chat.call_count, 1)
+        self.assertGreater(len(revised[0].text.split()), 11)
+        self.assertEqual(revised[0].text, expanded)
+
+    def test_speech_budgets_reject_long_padding_and_balance_short_pauses(self):
+        self.assertIsNone(script_timing.speech_budgets([2.5]*7,55))
+        values=script_timing.speech_budgets([7,12,9,10,14],55)
+        self.assertAlmostEqual(sum(values),55)
+        self.assertTrue(all(0 <= b-s <= 1 for s,b in zip([7,12,9,10,14],values)))
+        self.assertIsNone(script_timing.speech_budgets([20]*5,55))
+
     def test_frame_budgets_sum_exactly_to_target(self):
         p=SimpleNamespace(duration=20,scenes=[SimpleNamespace(start=0,end=n,speed=1) for n in (3,7,11)])
         values=script_timing.frame_budgets(p)
         self.assertAlmostEqual(sum(values),20)
         self.assertEqual(sum(round(x*30) for x in values),600)
 
+    def test_forty_second_motion_budget_respects_clip_limits(self):
+        values = script_timing.speech_budgets([4.7]*8,40,[6]*8)
+        self.assertEqual(sum(round(x*30) for x in values),1200)
+        self.assertTrue(all(x <= 6 for x in values))
+        self.assertIsNone(script_timing.speech_budgets([7,4.3,4.3,4.3,4.3,4.3,4.3,4.3],40,[6]*8))
+        self.assertIsNone(script_timing.speech_budgets([4]*8,40,[6]*8))
+
     def test_language_budgets_leave_time_for_pauses(self):
         self.assertEqual(script_timing.word_limit(20,'hi'),33)
         self.assertEqual(script_timing.word_limit(20,'en'),38)
+
+    def test_long_avatar_targets_keep_every_frame(self):
+        for seconds, count in ((60,8),(65,8),(180,12)):
+            with self.subTest(seconds=seconds):
+                p=SimpleNamespace(duration=seconds,scenes=[
+                    SimpleNamespace(start=0,end=seconds/count,speed=1) for _ in range(count)])
+                values=script_timing.frame_budgets(p)
+                self.assertEqual(sum(round(x*30) for x in values),seconds*30)
+                self.assertAlmostEqual(sum(values),seconds)
 
     def test_shortener_rejects_id_changes_and_over_budget_text(self):
         scene=SimpleNamespace(id='original',text='Original words')
@@ -28,6 +82,10 @@ class TimingTests(unittest.TestCase):
                                {'scenes':[{'id':scene.id,'text':'Trees protect riverbanks.'}]}])
         result=script_timing.shorten([scene],[3],'en',chat,'Fit 5 seconds.')
         self.assertEqual(chat.call_count,2)
+        self.assertTrue(all(call.kwargs['think'] is False for call in chat.call_args_list))
+        retry = json.loads(chat.call_args_list[1].args[1])
+        self.assertEqual(retry['scenes'][0]['text'],'This is still far too long')
+        self.assertEqual(retry['scenes'][0]['max_words'],3)
         self.assertEqual(result[0].text,'Trees protect riverbanks.')
         self.assertEqual(result[0].visual_prompt,scene.visual_prompt)
         self.assertEqual(scene.text,'Trees protect the riverbanks from soil erosion.')

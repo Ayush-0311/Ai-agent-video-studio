@@ -169,7 +169,23 @@ class PresenterTests(unittest.TestCase):
         planned=p.model_copy(deep=True)
         planned.scenes=[studio.Scene(text='Machines learn patterns from examples.',visual_prompt='A computer compares example images.',end=10),
                         studio.Scene(text='Those patterns help predict new results.',visual_prompt='A computer recognizes a cat.',end=10)]
+        spoken=[
+            'Learning systems find patterns in examples and use them to make predictions about new cases.',
+            'A model can still be wrong when new examples differ from its training data.',
+        ]
         seen_sources=[]
+        def timing_chat(system,message,**options):
+            request=json.loads(message)
+            if not system.startswith('You are an educational video narration editor'):
+                return {'scenes':[{'scene_id':scene['scene_id'],'matched':True,
+                    'narration_quote':scene['text'],'reason':'The computer illustration explains how examples support predictions.',
+                    'replacement_prompt':''} for scene in request['scenes']]}
+            return {'scenes':[{'id':scene['id'],'text':spoken[i],
+                'slide_title':'Learning from examples','slide_points':['Patterns support predictions'],
+                'visual_prompt':'A computer compares example images'}
+                for i,scene in enumerate(request['scenes'])]}
+        def measured_voice(project,scene,cache,prefix):
+            return self.music, (9.4 if scene.text in spoken else 2.0)
         def lip(job,source,voice,seconds,speed,output,context):
             seen_sources.append(source)
             studio.run([self.ff,'-y','-v','error','-stream_loop','-1','-i',str(source),
@@ -177,7 +193,7 @@ class PresenterTests(unittest.TestCase):
                 '-c:v','libx264','-pix_fmt','yuv420p','-c:a','aac',str(output)])
         def image(prompt,style,ratio,out):shutil.copyfile(self.image,out)
         jid=self.job(p)
-        with patch.object(presenter,'readiness',return_value={'available':True}),patch.object(studio,'plan',return_value=planned.model_dump()) as planner,patch.object(studio,'scene_voice',return_value=(self.music,2)),patch.object(studio,'image_asset',side_effect=image),patch.object(presenter,'generate',side_effect=lip):
+        with patch.object(presenter,'readiness',return_value={'available':True}),patch.object(studio,'plan',return_value=planned.model_dump()) as planner,patch.object(studio,'chat',side_effect=timing_chat),patch.object(studio,'scene_voice',side_effect=measured_voice),patch.object(studio,'image_asset',side_effect=image),patch.object(presenter,'generate',side_effect=lip):
             result=studio.generate(jid,p)
         planner.assert_called_once()
         self.assertEqual(result['project']['presenter_asset_id'],'')
