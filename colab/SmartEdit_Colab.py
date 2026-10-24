@@ -578,7 +578,7 @@ def bounded_chat_options(options, context_length):
 
 
 def main():
-    print('SmartEdit Colab setup: 2026-10-24 / live planner readiness and recovery', flush=True)
+    print('SmartEdit Colab setup: 2026-10-24 / warm planner and direct structured generation', flush=True)
     configure_low_memory_downloads()
     subprocess.run(['nvidia-smi', '--query-gpu=name,memory.total', '--format=csv'], check=True)
     ngrok_token = read_ngrok_token()
@@ -692,7 +692,8 @@ def main():
         return {'image_ready': state['image_tested'], 'voice_ready': state['voice_tested'],
                 'image_model': visual_profile['model'], 'image_profile':visual_profile, 'reference_images':True,
                 'voice_engine': voice_service.mode, 'voice_providers': dict(voice_service.providers),
-                'voice_model_license': 'CC-BY-NC' if voice_service.mode == 'omnivoice' else 'provider-specific', 'bridge_version': 10,
+                'voice_model_license': 'CC-BY-NC' if voice_service.mode == 'omnivoice' else 'provider-specific', 'bridge_version': 11,
+                'planner_keep_alive': '5m',
                 'presenter_available': presenter_ready, 'presenter_tested': state['presenter_tested'], 'edit_planner_ready':state['planner_tested'],
                 'planner_error': state['planner_error'], 'presenter_setup_error': presenter_setup_error,
                 'motion_presets': ['preview', 'balanced', 'quality'],
@@ -713,8 +714,8 @@ def main():
                 'model': MODEL, 'messages': [
                     {'role':'system','content':'Translate editing requests into JSON. Return only {"operations":[{"op":"clip","target":"all","changes":{"volume":NUMBER}}]}. Volume is a fraction from 0 to 1.'},
                     {'role':'user','content':'Poori video ki awaaz 50% kar do.'}],
-                'format':'json', 'think':False, 'keep_alive':0,
-                'options':{'num_ctx':min(profile['context_length'],4096),'num_predict':256,'temperature':0}},
+                'format':'json', 'think':False, 'keep_alive':'5m',
+                'options':{'num_ctx':profile['context_length'],'num_predict':256,'temperature':0}},
                 timeout=120)
             if response.status_code != 200:
                 state['planner_tested'] = False
@@ -759,7 +760,9 @@ def main():
                 release_model_memory(torch)
             if payload.get('model') != MODEL:
                 raise HTTPException(400, f'This bridge is configured for {MODEL}. Change MODEL in the Colab setup to use another model.')
-            payload.update(stream=False, keep_alive=0)
+            # Keep consecutive planning stages warm, but bound idle VRAM use.
+            # Image, voice, motion and presenter routes unload Ollama under this lock.
+            payload.update(stream=False, keep_alive='5m')
             payload['options'] = bounded_chat_options(payload.get('options'), profile['context_length'])
             try:
                 response = requests.post('http://127.0.0.1:11434/api/chat', json=payload, timeout=600)

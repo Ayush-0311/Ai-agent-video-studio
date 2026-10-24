@@ -33,7 +33,7 @@ class ImageReferenceTests(unittest.TestCase):
             'state':{'pipe':self.pipe,'motion_pipe':None,'image_tested':False},
             'visual_profile':{'family':'sdxl'},'release_model_memory':Mock(),
             'prepare_sdxl_reference':Mock(return_value=('local-adapter',[object()])),
-            'requests':SimpleNamespace(get=Mock(return_value=response)),
+            'requests':SimpleNamespace(get=Mock(return_value=response),post=Mock(return_value=Mock())),
             'torch':SimpleNamespace(Generator=Mock(return_value=Mock()),cuda=SimpleNamespace(OutOfMemoryError=MemoryError)),
             'image_options':lambda *args:{'prompt':args[1]}}
         exec(compile(ast.Module(body=nodes,type_ignores=[]),'image-route','exec'),self.ns)
@@ -64,3 +64,24 @@ class ImageReferenceTests(unittest.TestCase):
             self.assertEqual(response.status_code,400)
         self.pipe.assert_not_called()
         self.ns['requests'].get.assert_not_called()
+
+    def test_warm_planner_is_unloaded_under_lock_before_image_inference(self):
+        self.pipe._smartedit_reference=False
+        self.ns['requests'].get.return_value.json.return_value={'models':[{'name':'qwen3.5:9b'}]}
+        def unload(*args,**kwargs):
+            self.assertTrue(self.ns['inference_lock'].locked())
+            self.pipe.assert_not_called()
+            self.assertEqual(kwargs['json'],{'model':'qwen3.5:9b','keep_alive':0})
+            return Mock()
+        self.ns['requests'].post.side_effect=unload
+        response=self.client.post('/image',json={'prompt':'A landscape'})
+        self.assertEqual(response.status_code,200)
+        self.ns['requests'].post.assert_called_once()
+        self.pipe.assert_called_once()
+
+    def test_failed_planner_unload_stops_before_image_inference(self):
+        self.ns['requests'].get.return_value.json.return_value={'models':[{'name':'qwen3.5:9b'}]}
+        self.ns['requests'].post.return_value.raise_for_status.side_effect=RuntimeError('unload failed')
+        with self.assertRaisesRegex(RuntimeError,'unload failed'):
+            self.client.post('/image',json={'prompt':'A landscape'})
+        self.pipe.assert_not_called()

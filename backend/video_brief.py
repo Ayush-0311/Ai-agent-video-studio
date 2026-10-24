@@ -82,7 +82,8 @@ def analyze(project, chat, checkpoint):
     for attempt in range(2):
         checkpoint()
         try:
-            data = chat(INSTRUCTION, json.dumps({**request, 'validation_feedback':feedback}, ensure_ascii=False))
+            data = chat(INSTRUCTION, json.dumps({**request, 'validation_feedback':feedback}, ensure_ascii=False),
+                        response_schema=Brief.model_json_schema())
             checkpoint()
             brief = Brief.model_validate(data)
             if brief.kind in ('explanation','tutorial'):

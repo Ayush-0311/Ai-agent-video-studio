@@ -11,7 +11,7 @@
    required by Windows must be available. A missing prerequisite produces a
    specific failure, never a false success.
 3. Launch SmartEdit after setup. The launcher updates an idle old backend; it
-   refuses to interrupt active or queued jobs. Production API is now 19.
+   refuses to interrupt active jobs. Production API is currently 17.
 4. Upload the updated `colab/SmartEdit_Colab.ipynb`, stop the previous setup cell,
    and run the new complete cell on a GPU. Paste its new private connection link.
    Local edits cannot update an already running remote notebook automatically.
@@ -51,15 +51,16 @@ References: [LTX model card](https://huggingface.co/Lightricks/LTX-Video-0.9.8-1
 
 ### Setup and reuse improvements
 
-- OmniVoice remains the default. Its isolated worker loads weights once for
-  consecutive narration requests. It stops before planner/image/motion/presenter
-  work, on a generation failure/timeout, and after five idle minutes. Narrator
-  references and 32 inference steps are preserved; there is no silent voice swap.
+- OmniVoice remains the default. Its isolated worker currently loads weights for
+  each uncached narration request and exits after synthesis to release VRAM.
+  Narrator references and 32 inference steps are preserved; there is no silent
+  voice swap. Persistent voice-model reuse is not implemented in this runtime.
 - The planner remains loaded for adjacent requests for up to five minutes.
   Visual and voice routes explicitly unload it before allocating other models.
-- Colab caches resolved model snapshots for the session. Default full verification
-  downloads motion weights for a real Fast draft sample; disabling that checkbox
-  defers the download to first use. Completed Hub files are
+- Completed model downloads are reused while present on the runtime disk.
+  Motion startup verification is off by default; `SMARTEDIT_TEST_MOTION=1`
+  opts into a real Fast draft sample. Otherwise the first motion request loads
+  its weights. Completed Hub files are
   reusable while the runtime cache survives; deleting the runtime loses its disk.
 - Wan2.1 text-encoder FP32 shards convert serially to BF16 storage in an owned
   directory. The converter deletes only its own verified source shard after
@@ -79,9 +80,7 @@ References: [LTX model card](https://huggingface.co/Lightricks/LTX-Video-0.9.8-1
   transfers up to three times, and resume ranges against the same immutable job.
   Clips still pass the existing decode/duration checks before publication.
 - Production jobs record queued/started/finished times and timestamp their events.
-  Waiting jobs are labelled queued rather than running.
-- Release file patterns exclude user media, model caches, settings/tokens and
-  local runtime downloads. This is not a completed standalone installer release.
+  Processing time excludes time waiting for the single production worker.
 
 ## Quality and remaining limits
 

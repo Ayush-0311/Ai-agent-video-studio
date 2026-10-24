@@ -1,5 +1,19 @@
 # SmartEdit Colab setup
 
+## Update: 2026-10-24 — faster structured planning
+
+The desktop now uses direct JSON generation for brief interpretation, writing,
+direction and visual review, including Hindi repairs. The updated bridge keeps
+the planner loaded for five idle minutes between these calls. It explicitly
+unloads the planner before GPU voice, images, motion or presenter work. Existing
+quality settings and validation remain in effect. See `GENERATION_SPEED_GUIDE.md`.
+
+Stop the previous setup cell, upload the complete updated
+`colab/SmartEdit_Colab.ipynb`, run it and reconnect its printed link. The startup
+banner must say `2026-10-24 / warm planner and direct structured generation`.
+An already running cell keeps its previous code even when GitHub is updated.
+Keep the runtime disk to reuse downloaded weights; no cache deletion is needed.
+
 ## Update: 2026-10-14 — OmniVoice narration
 
 The default Colab speech engine is now **upstream OmniVoice 0.2.1**, installed in `/content/smartedit-omnivoice/venv` with Python 3.11, PyTorch/Torchaudio 2.8.0 and Transformers 5.3.0. This does not install the VoiceStudio desktop application or modify the image pipeline's Transformers 4 environment. Select **OmniVoice / Colab** in desktop voice settings and save. Existing explicitly saved Edge preferences remain selectable. New settings default to the bridge.

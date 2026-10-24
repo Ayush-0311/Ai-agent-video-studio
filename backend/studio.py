@@ -19,6 +19,7 @@ from urllib.parse import urlsplit, parse_qs
 
 import requests
 import narration
+import narration_pacing
 import speech_timing
 import realistic_presenter
 import sys
@@ -276,7 +277,7 @@ def planner_runtime(cfg):
         return dict(PLANNER_RUNTIME.get(planner_identity(cfg), {}))
 
 
-def chat(system, message, temperature=.4, timeout=600, think=True, response_schema=None):
+def chat(system, message, temperature=.4, timeout=600, think=False, response_schema=None):
     cfg = settings()
     options = {'temperature':temperature,'num_ctx':8192,'num_predict':6000}
     if think and cfg.model.lower().startswith('qwen3.5:'):
@@ -288,7 +289,9 @@ def chat(system, message, temperature=.4, timeout=600, think=True, response_sche
         response = requests.post(cfg.ollama_url.rstrip('/') + '/api/chat', headers=headers(cfg),
             json={'model': cfg.model, 'messages': [{'role': 'system', 'content': system},
                   {'role': 'user', 'content': message}], 'stream': False, 'format': response_schema or 'json',
-                  'think': think, 'keep_alive': 0,
+                  # Adjacent writing/direction/review calls reuse the same runner.
+                  # The Colab media routes explicitly unload it before using GPU memory.
+                  'think': think, 'keep_alive': '5m',
                   'options': options}, timeout=timeout)
     except requests.Timeout:
         remember_planner(cfg, False, 'Planner inference timed out while waiting for Colab.')
@@ -341,7 +344,9 @@ def event(jid, agent, status, message, progress=None):
         job = JOBS[jid]
         if job.get('cancel_requested'):
             raise RuntimeError('Cancelled by user.')
-        job['events'].append({'agent': agent, 'status': status, 'message': message})
+        now = time.time()
+        job['events'].append({'agent': agent, 'status': status, 'message': message,
+                              'at': now, 'elapsed_seconds': round(max(0, now-job.get('started_at', now)), 2)})
         if progress is not None:
             if job.get('kind') == 'generate':
                 progress = round(progress * .2) if job.get('phase') == 'planning' else round(20 + progress * .8)
@@ -356,6 +361,8 @@ def checkpoint(jid):
 
 
 def worker(jid, fn, project):
+    with LOCK:
+        JOBS[jid]['started_at'] = time.time()
     try:
         result = fn(jid, project)
         checkpoint(jid)
@@ -365,12 +372,17 @@ def worker(jid, fn, project):
         with LOCK:
             JOBS[jid].update(status='cancelled' if JOBS[jid].get('cancel_requested') else 'failed', error=str(exc))
     finally:
-        write_json(path_for('jobs', jid), JOBS[jid])
+        with LOCK:
+            job = JOBS[jid]
+            job['finished_at'] = time.time()
+            job['elapsed_seconds'] = round(max(0, job['finished_at']-job['started_at']), 2)
+            write_json(path_for('jobs', jid), job)
 
 
 def queue(kind, project, fn):
     jid = uuid.uuid4().hex
-    job = {'id': jid, 'project_id': project.id, 'kind': kind, 'status': 'running', 'progress': 0, 'events': []}
+    job = {'id': jid, 'project_id': project.id, 'kind': kind, 'status': 'running', 'progress': 0,
+           'queued_at': time.time(), 'events': []}
     with LOCK:
         JOBS[jid] = job
         write_json(path_for('jobs', jid), job)
@@ -478,7 +490,20 @@ def plan(jid, project):
         research = {'status':'not_needed','sources':[],
                     'note':'The interpreted creative brief does not need factual topic references.'}
     event(jid, 'Script writer', 'running', 'Writing a simple explanation, example and takeaway.' if educational else 'Writing narration and draft visual prompts.', 5)
-    max_words_per_scene = (round(project.duration/count*2.8) if detailed_explainer
+    target_words = (round(project.duration*2.5) if detailed_explainer
+                    else script_timing.word_limit(project.duration, project.language))
+    measured_rate = None
+    if detailed_explainer and project.duration_mode == 'target' and project.narration_timing == 'exact':
+        voice_cfg = settings()
+        if project.script_voice_gender != 'default':
+            voice_cfg = voice_cfg.model_copy(update={'voice_gender':project.script_voice_gender,'voice_profile':'auto'})
+        measured_rate = narration_pacing.measured_rate(DATA/'cache/voice-pace',
+            narration.cache_identity(voice_cfg,project.language))
+        if measured_rate is not None:
+            speech_seconds = project.duration - count * min(.45, project.duration/count*.06)
+            target_words = max(4*count, round(speech_seconds*measured_rate))
+    max_words_per_scene = (round(target_words/count*1.12) if measured_rate is not None else
+                           round(project.duration/count*2.8) if detailed_explainer
                            else script_timing.word_limit(project.duration/count, project.language))
     writing_budget = (
         f'Aim for {round(max_words_per_scene*.8)} to {max_words_per_scene} words per scene. '
@@ -531,8 +556,8 @@ def plan(jid, project):
            'development and ending, all specific to this topic. No generic filler or multi-shot montage inside a shot. '
            'Use the narration word budget above; let sentences flow naturally across shots.' if motion else ''))
     writer_request = json.dumps({'topic_or_script': project.prompt, 'language': project.language,
-            'target_seconds': project.duration, 'target_words': (round(project.duration*2.5) if detailed_explainer
-                                                               else script_timing.word_limit(project.duration, project.language)),
+            'target_seconds': project.duration, 'target_words': target_words,
+            'measured_voice_words_per_second': round(measured_rate,3) if measured_rate is not None else None,
             'max_words_per_scene': max_words_per_scene,
             'scene_count': count, 'seconds_per_scene': project.duration/count,
             'scene_mode': project.scene_mode, 'script_segments': segments,
@@ -544,6 +569,19 @@ def plan(jid, project):
             'references': research,
             'schema': {'title': 'title', 'scenes': [{'text': 'narration/caption text or empty when both disabled', 'visual_prompt': 'detailed shot description',
                         **({'slide_title': 'short heading', 'slide_points': ['key idea']} if explainer else {})}]}})
+    # Constrain JSON at generation time; semantic/language checks still run below.
+    scene_fields = {
+        'text': {'type':'string', 'minLength':1 if text_enabled else 0, 'maxLength':5000},
+        'visual_prompt': {'type':'string', 'minLength':1, 'maxLength':4000}}
+    if explainer:
+        scene_fields.update(slide_title={'type':'string','minLength':1,'maxLength':55},
+                            slide_points={'type':'array','minItems':1,'maxItems':3,
+                                          'items':{'type':'string','minLength':1,'maxLength':65}})
+    writer_schema = {'type':'object', 'additionalProperties':False, 'required':['title','scenes'],
+        'properties':{'title':{'type':'string'}, 'scenes':{'type':'array',
+            'minItems':count if motion or segments else 1, 'maxItems':count if motion or segments else 30,
+            'items':{'type':'object','additionalProperties':False,'required':list(scene_fields),
+                     'properties':scene_fields}}}}
     # Repair malformed model output instead of discarding the user's production.
     data = None
     raw = None
@@ -563,10 +601,12 @@ def plan(jid, project):
         try:
             if attempt and project.language == 'hi':
                 data = chat(writer_system + ' Repair the supplied draft. Return the complete corrected object. '
-                            'Think briefly in English, then write all spoken text in Hindi Devanagari. '
-                            'Do not repeat the invalid Romanized draft.', repair_request, think=True)
+                            'Write all spoken text in natural Hindi Devanagari. '
+                            'Do not repeat the invalid Romanized draft.', repair_request,
+                            response_schema=writer_schema)
             else:
-                data = chat(writer_system + ' Repair the supplied draft. Return the complete corrected object, not an explanation.', repair_request) if attempt else chat(writer_system, writer_request)
+                data = chat(writer_system + (' Repair the supplied draft. Return the complete corrected object, not an explanation.' if attempt else ''),
+                            repair_request if attempt else writer_request, response_schema=writer_schema)
         except ValueError:
             # Invalid/truncated JSON also needs repair, before scene validation can run.
             # Connection/authentication errors must still reach the user immediately.
@@ -618,7 +658,9 @@ def plan(jid, project):
         lambda *args: event(jid, *args), lambda: checkpoint(jid), characters=agent_report.get('characters'))
     project.scenes = scenes
     project.production_notes = {**project.production_notes, 'video_brief':brief, 'research':research, 'agent_workflow':agent_report,
-                                'visual_alignment':visual_report}
+                                'visual_alignment':visual_report,
+                                'writing_budget':{'target_words':target_words,
+                                    'measured_voice_words_per_second':measured_rate}}
     project.title = str(data.get('title', 'New video'))[:150]
     checkpoint(jid)
     write_json(path_for('projects', project.id), project.model_dump())
@@ -856,12 +898,15 @@ def scene_voice(project, scene, cache, prefix):
         if not ok:
             voice.unlink(missing_ok=True)
             raise RuntimeError(f'{prefix}: voice generation failed. Check Internet access or mute this scene explicitly.')
-    duration = float(probe(voice)['format']['duration']) / scene.speed
+    raw_duration = float(probe(voice)['format']['duration'])
+    duration = raw_duration / scene.speed
     if not math.isfinite(duration) or duration <= 0:
         raise ValueError(f'{prefix}: narration has invalid duration.')
     if not audible(voice):
         voice.unlink(missing_ok=True)
         raise ValueError(f'{prefix}: voice contains no audible speech. Retry voice preview before generating visuals.')
+    narration_pacing.observe(DATA/'cache/voice-pace', narration.cache_identity(cfg,project.language),
+                            scene.text, raw_duration)
     return voice, duration
 
 

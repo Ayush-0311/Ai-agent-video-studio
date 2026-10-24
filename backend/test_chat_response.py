@@ -6,7 +6,7 @@ import studio
 
 
 class ChatResponseTests(unittest.TestCase):
-    def test_qwen_agents_default_to_reasoning_but_can_opt_out(self):
+    def test_qwen_structured_calls_default_to_direct_output_but_can_opt_into_reasoning(self):
         cfg=SimpleNamespace(ollama_url='http://test',model='qwen3.5:9b')
         with patch.object(studio,'settings',return_value=cfg),patch.object(studio,'headers',return_value={}), \
              patch.object(studio.requests,'post',return_value=Mock(status_code=200,json=lambda:{'message':{'content':'{}'}})) as post, \
@@ -17,10 +17,12 @@ class ChatResponseTests(unittest.TestCase):
             self.assertEqual(options['presence_penalty'],1.5)
             self.assertEqual(options['num_predict'],6000)
             studio.chat('system','message',temperature=.2)
-            self.assertTrue(post.call_args.kwargs['json']['think'])
-            self.assertEqual(post.call_args.kwargs['json']['options']['temperature'],1.)
-            studio.chat('system','message',temperature=.2,think=False)
+            self.assertFalse(post.call_args.kwargs['json']['think'])
+            self.assertEqual(post.call_args.kwargs['json']['keep_alive'],'5m')
             self.assertEqual(post.call_args.kwargs['json']['options'],{'temperature':.2,'num_ctx':8192,'num_predict':6000})
+            schema={'type':'object','properties':{'title':{'type':'string'}},'required':['title']}
+            studio.chat('system','message',response_schema=schema)
+            self.assertEqual(post.call_args.kwargs['json']['format'],schema)
 
     def request(self, reply):
         cfg=SimpleNamespace(ollama_url='http://test',model='test')

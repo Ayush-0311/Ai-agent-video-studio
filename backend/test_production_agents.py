@@ -32,6 +32,10 @@ class ProductionAgentsTests(unittest.TestCase):
         self.assertEqual(report['director_attempts'],2)
         self.assertIn('exactly once',json.loads(chat.call_args.args[1])['validation_feedback'])
         self.assertTrue(any(c.args[0]=='Storyboard QA' for c in emit.call_args_list))
+        schema=chat.call_args.kwargs['response_schema']
+        self.assertEqual(schema['properties']['shots']['minItems'],2)
+        self.assertEqual(schema['properties']['shots']['maxItems'],2)
+        self.assertEqual(schema['$defs']['Shot']['properties']['scene_id']['enum'],[s.id for s in self.scenes])
 
     def test_invalid_output_never_loops_forever_or_silently_falls_back(self):
         chat=Mock(return_value={'shots':[]})

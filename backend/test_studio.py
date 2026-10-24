@@ -636,6 +636,14 @@ class StudioTests(unittest.TestCase):
                             result=studio.plan(self.job(p),p)
                         writer_calls=[c for c in chat.call_args_list if c.args[0].startswith('You are a careful video scriptwriter')]
                         self.assertEqual(len(writer_calls),2)
+                        for call in writer_calls:
+                            schema=call.kwargs['response_schema']
+                            self.assertEqual(schema['required'],['title','scenes'])
+                            scene_schema=schema['properties']['scenes']
+                            self.assertEqual(scene_schema['maxItems'],count if mode in ('hybrid','motion') else 30)
+                            self.assertIn('text',scene_schema['items']['required'])
+                            self.assertEqual('slide_points' in scene_schema['items']['required'],mode=='avatar')
+                            self.assertFalse(call.kwargs.get('think',False))
                         self.assertEqual(len(result['scenes']),count)
                         self.assertTrue(all(s['text']==scene['text'] for s in result['scenes']))
                         self.assertTrue(json.loads(writer_calls[1].args[1])['validation_error'])
@@ -726,6 +734,35 @@ class StudioTests(unittest.TestCase):
                 self.assertNotIn('at most 8 words',chat.call_args_list[0].args[0])
                 self.assertEqual(len(p.scenes),count)
                 self.assertTrue(all(s.text==draft['scenes'][0]['text'] for s in p.scenes))
+
+    def test_exact_script_budget_uses_measured_pace_for_the_selected_voice(self):
+        p=studio.Project(prompt='Explain solar energy',language='hi',duration=20,
+                         duration_mode='target',script_voice_gender='female',research=False)
+        cfg=studio.Settings(image_url='https://bridge.invalid',voice_gender='male')
+        draft={'title':'Solar energy','scenes':[{'text':'सूरज की रोशनी से बिजली बनती है।',
+                                                'visual_prompt':'Solar panels on a roof'}]}
+        with patch.object(studio,'settings',return_value=cfg), \
+             patch.object(studio.narration_pacing,'measured_rate',return_value=3.2) as pace, \
+             patch.object(studio,'chat',side_effect=self.agent_reply(draft)) as chat:
+            result=studio.plan(self.job(p),p)
+        request=json.loads(chat.call_args_list[0].args[1])
+        self.assertEqual(request['target_words'],61)
+        self.assertEqual(request['measured_voice_words_per_second'],3.2)
+        self.assertIn('female',pace.call_args.args[1])
+        self.assertEqual(result['production_notes']['writing_budget']['target_words'],61)
+
+    def test_voice_pace_learns_raw_audio_duration_before_timeline_speed(self):
+        p=studio.Project(language='hi')
+        scene=studio.Scene(text='यह एक उदाहरण है जिसमें हम सूरज से मिलने वाली बिजली को समझते हैं।',speed=2)
+        cache=self.root/'pace-fixture'
+        cache.mkdir(exist_ok=True)
+        with patch.object(studio,'voice_asset',return_value=True), \
+             patch.object(studio,'probe',return_value={'format':{'duration':'12'}}), \
+             patch.object(studio,'audible',return_value=True), \
+             patch.object(studio.narration_pacing,'observe') as observe:
+            _,duration=studio.scene_voice(p,scene,cache,'Scene 1')
+        self.assertEqual(duration,6)
+        self.assertEqual(observe.call_args.args[-2:],(scene.text,12))
 
     def test_images_hybrid_and_motion_expand_then_export_exactly_forty_seconds(self):
         import shutil

@@ -181,17 +181,22 @@ def direct_scenes(project, scenes, chat, emit, checkpoint):
                          'visual_kind':s.media_kind if s.asset_id else video_brief.visual_kind(project,i)}
                         for i,s in enumerate(scenes)]}
     feedback = ''
+    schema = Direction.model_json_schema()
+    schema['properties']['shots'].update(minItems=len(scenes),maxItems=len(scenes))
+    schema['$defs']['Shot']['properties']['scene_id']['enum'] = [s.id for s in scenes]
     for attempt in range(2):
         checkpoint()
         emit('Shot director', 'running', 'Directing shots and recurring character appearance.' if not attempt
              else 'Repairing the director response using validation feedback.', 50+attempt*10)
         try:
-            data = chat(DIRECTOR, json.dumps({**brief, 'validation_feedback':feedback}, ensure_ascii=False))
+            data = chat(DIRECTOR, json.dumps({**brief, 'validation_feedback':feedback}, ensure_ascii=False),
+                        response_schema=schema)
             checkpoint()
             direction, prompts = validate_direction(data, scenes)
         except ValueError as exc:
             if attempt:
-                raise ValueError('Shot director failed structural validation twice. Saved project was not changed.') from exc
+                raise ValueError('Shot director failed structural validation twice. Saved project was not changed. '
+                                 'Validation: '+str(exc)[:500]) from exc
             feedback = str(exc)[:2000]
             emit('Storyboard QA', 'running', 'Invalid shot IDs or continuity data; requesting one repair.', 55)
             continue
@@ -259,6 +264,9 @@ def align_visuals(project, scenes, chat, emit, checkpoint, previous=None, charac
         emit('Narration–visual review','completed','Reusing unchanged narration and visual prompt review.')
         return scenes, previous
     current = [s.model_copy(deep=True) for s in candidates]
+    schema = VisualReview.model_json_schema()
+    schema['properties']['scenes'].update(minItems=len(current),maxItems=len(current))
+    schema['$defs']['VisualVerdict']['properties']['scene_id']['enum'] = [s.id for s in current]
     review_prompt = ALIGNMENT
     if project.scene_mode == 'ready':
         review_prompt += '''
@@ -273,7 +281,9 @@ educational illustration. Narration remains verbatim.'''
         emit('Narration–visual review','running','Checking each image prompt against its spoken explanation.' if not attempt
              else 'Checking repaired visual prompts against the narration.')
         try:
-            response = VisualReview.model_validate(chat(review_prompt,json.dumps({**brief(current),'validation_feedback':feedback},ensure_ascii=False)))
+            response = VisualReview.model_validate(chat(review_prompt,
+                json.dumps({**brief(current),'validation_feedback':feedback},ensure_ascii=False),
+                response_schema=schema))
             checkpoint()
             verdicts = {v.scene_id:v for v in response.scenes}
             if len(verdicts) != len(response.scenes) or set(verdicts) != {s.id for s in current}:
